@@ -34,9 +34,9 @@ let hdft sign n input =
    multiplication by (NaN I), and summation *)
 let dft_via_rdft sign n input =
   let f = rdft sign n input
-  in fun i -> 
+  in fun i ->
     Complex.plus
-      [Complex.real (f i); 
+      [Complex.real (f i);
        Complex.times (Complex.nan Expr.I) (Complex.imag (f i))]
 
 (* Discrete Hartley Transform *)
@@ -45,13 +45,13 @@ let dht sign n input =
   (fun i ->
     Complex.plus [Complex.real (f i); Complex.imag (f i)])
 
-let trigI n input = 
+let trigI n input =
   let twon = 2 * n in
   let input' = Complex.hermitian twon input
   in
   Fft.dft 1 twon input'
 
-let interleave_zero input = fun i -> 
+let interleave_zero input = fun i ->
   if (i mod 2) == 0
       then Complex.zero
   else
@@ -67,13 +67,13 @@ let trigIII n input =
   let fourn = 4 * n in
   let twon = 2 * n in
   let input' = Complex.hermitian fourn
-      (fun i -> 
-	if (i == 0) then
-	  Complex.real (input 0)
-	else if (i == twon) then
-	  Complex.uminus (Complex.real (input 0))
-	else
-	  Complex.antihermitian twon input i)
+      (fun i ->
+        if (i == 0) then
+          Complex.real (input 0)
+        else if (i == twon) then
+          Complex.uminus (Complex.real (input 0))
+        else
+          Complex.antihermitian twon input i)
   in
   let dft = Fft.dft 1 fourn input'
   in fun k -> dft (2 * k + 1)
@@ -86,17 +86,17 @@ let zero_extend n input = fun i ->
 let trigIV n input =
   let fourn = 4 * n
   and eightn = 8 * n in
-  let input' = Complex.hermitian eightn 
-      (zero_extend fourn (Complex.antihermitian fourn 
-			 (interleave_zero input)))
+  let input' = Complex.hermitian eightn
+      (zero_extend fourn (Complex.antihermitian fourn
+                         (interleave_zero input)))
   in
   let dft = Fft.dft 1 eightn input'
   in fun k -> dft (2 * k + 1)
 
 let make_dct scale nshift trig =
   fun n input ->
-    trig (n - nshift) (Complex.real @@ (Complex.times scale) @@ 
-		       (zero_extend n input))
+    trig (n - nshift) (Complex.real @@ (Complex.times scale) @@
+                       (zero_extend n input))
 (*
  * DCT-I:  y[k] = sum x[j] cos(pi * j * k / n)
  *)
@@ -122,13 +122,13 @@ let shift s input = fun i -> input (i - s)
 (* DST-x input := TRIG-x (input / i) *)
 let make_dst scale nshift kshift jshift trig =
   fun n input ->
-    Complex.real @@ 
+    Complex.real @@
     (shift (- jshift)
        (trig (n + nshift) (Complex.uminus @@
-			   (Complex.times Complex.i) @@
-			   (Complex.times scale) @@ 
-			   Complex.real @@ 
-			   (shift kshift (zero_extend n input)))))
+                           (Complex.times Complex.i) @@
+                           (Complex.times scale) @@
+                           Complex.real @@
+                           (shift kshift (zero_extend n input)))))
 
 (*
  * DST-I:  y[k] = sum x[j] sin(pi * j * k / n)

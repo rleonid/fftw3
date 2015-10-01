@@ -57,25 +57,25 @@ let speclist = [
   "-dft-II",
   Arg.Unit(fun () -> dftII_flag := true),
   " produce shifted dftII-style codelets"
-] 
+]
 
 let rdftII sign n input =
   let input' i = if i < n then input i else Complex.zero in
   let f = Fft.dft sign (2 * n) input' in
   let g i = f (2 * i + 1)
-  in fun i -> 
+  in fun i ->
     if (i < n - i) then g i
     else if (2 * i + 1 == n) then Complex.real (g i)
     else Complex.zero
 
 let generate n =
   let ar0 = "R0" and ar1 = "R1" and acr = "Cr" and aci = "Ci"
-  and rs = "rs" and csr = "csr" and csi = "csi" 
+  and rs = "rs" and csr = "csr" and csi = "csi"
   and i = "i" and v = "v"
   and transform = if !dftII_flag then rdftII else Trig.rdft
   in
 
-  let sign = !Genutil.sign 
+  let sign = !Genutil.sign
   and name = !Magic.codelet_name in
 
   let vrs = either_stride (!urs) (C.SVar rs)
@@ -87,21 +87,21 @@ let generate n =
   let sivs = stride_to_string "ivs" !uivs in
 
   let locations = unique_array_c n in
-  let inpute = 
-    locative_array_c n 
+  let inpute =
+    locative_array_c n
       (C.array_subscript ar0 vrs)
       (C.array_subscript "BUG" vrs)
       locations sivs
   and inputo =
-    locative_array_c n 
+    locative_array_c n
       (C.array_subscript ar1 vrs)
       (C.array_subscript "BUG" vrs)
       locations sivs
   in
   let input i = if i mod 2 == 0 then inpute (i/2) else inputo ((i-1)/2) in
   let output = transform sign n (load_array_r n input) in
-  let oloc = 
-    locative_array_c n 
+  let oloc =
+    locative_array_c n
       (C.array_subscript acr vcsr)
       (C.array_subscript aci vcsi)
       locations sovs in
@@ -111,39 +111,39 @@ let generate n =
   let body = Block (
     [Decl ("INT", i)],
     [For (Expr_assign (CVar i, CVar v),
-	  Binop (" > ", CVar i, Integer 0),
-	  list_to_comma 
-	    [Expr_assign (CVar i, CPlus [CVar i; CUminus (Integer 1)]);
-	     Expr_assign (CVar ar0, CPlus [CVar ar0; CVar sivs]);
-	     Expr_assign (CVar ar1, CPlus [CVar ar1; CVar sivs]);
-	     Expr_assign (CVar acr, CPlus [CVar acr; CVar sovs]);
-	     Expr_assign (CVar aci, CPlus [CVar aci; CVar sovs]);
-	     make_volatile_stride (4*n) (CVar rs);
-	     make_volatile_stride (4*n) (CVar csr);
-	     make_volatile_stride (4*n) (CVar csi)
-	   ],
-	  Asch annot)
+          Binop (" > ", CVar i, Integer 0),
+          list_to_comma
+            [Expr_assign (CVar i, CPlus [CVar i; CUminus (Integer 1)]);
+             Expr_assign (CVar ar0, CPlus [CVar ar0; CVar sivs]);
+             Expr_assign (CVar ar1, CPlus [CVar ar1; CVar sivs]);
+             Expr_assign (CVar acr, CPlus [CVar acr; CVar sovs]);
+             Expr_assign (CVar aci, CPlus [CVar aci; CVar sovs]);
+             make_volatile_stride (4*n) (CVar rs);
+             make_volatile_stride (4*n) (CVar csr);
+             make_volatile_stride (4*n) (CVar csi)
+           ],
+          Asch annot)
    ])
   in
 
   let tree =
     Fcn ((if !Magic.standalone then "void" else "static void"), name,
-	 ([Decl (C.realtypep, ar0);
-	   Decl (C.realtypep, ar1);
-	   Decl (C.realtypep, acr);
-	   Decl (C.realtypep, aci);
-	   Decl (C.stridetype, rs);
-	   Decl (C.stridetype, csr);
-	   Decl (C.stridetype, csi);
-	   Decl ("INT", v);
-	   Decl ("INT", "ivs");
-	   Decl ("INT", "ovs")]),
-	 finalize_fcn body)
+         ([Decl (C.realtypep, ar0);
+           Decl (C.realtypep, ar1);
+           Decl (C.realtypep, acr);
+           Decl (C.realtypep, aci);
+           Decl (C.stridetype, rs);
+           Decl (C.stridetype, csr);
+           Decl (C.stridetype, csi);
+           Decl ("INT", v);
+           Decl ("INT", "ivs");
+           Decl ("INT", "ovs")]),
+         finalize_fcn body)
 
-  in let desc = 
-    Printf.sprintf 
+  in let desc =
+    Printf.sprintf
       "static const kr2c_desc desc = { %d, \"%s\", %s, &GENUS };\n\n"
-      n name (flops_of tree) 
+      n name (flops_of tree)
 
   and init =
     (declare_register_fcn name) ^

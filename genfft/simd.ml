@@ -34,31 +34,31 @@ let constrealtypep = constrealtype ^ " *"
 let alignment_mod = 2
 
 (*
- * SIMD C AST unparser 
+ * SIMD C AST unparser
  *)
 let foldr_string_concat l = fold_right (^) l ""
 
-let rec unparse_by_twiddle nam tw src = 
+let rec unparse_by_twiddle nam tw src =
   sprintf "%s(&(%s),%s)" nam (Variable.unparse tw) (unparse_expr src)
 
 and unparse_store dst = function
   | Times (NaN MULTI_A, x) ->
-      sprintf "STM%d(&(%s),%s,%s,&(%s));\n" 
-	!Simdmagic.store_multiple
-	(Variable.unparse dst) (unparse_expr x)
-	(Variable.vstride_of_locative dst)
-	(Variable.unparse_for_alignment alignment_mod dst)
+      sprintf "STM%d(&(%s),%s,%s,&(%s));\n"
+        !Simdmagic.store_multiple
+        (Variable.unparse dst) (unparse_expr x)
+        (Variable.vstride_of_locative dst)
+        (Variable.unparse_for_alignment alignment_mod dst)
   | Times (NaN MULTI_B, Plus stuff) ->
-      sprintf "STN%d(&(%s)%s,%s);\n" 
-	!Simdmagic.store_multiple
-	(Variable.unparse dst) 
-	(List.fold_right (fun x a -> "," ^ (unparse_expr x) ^ a) stuff "")
-	(Variable.vstride_of_locative dst)
-  | src_expr -> 
-      sprintf "ST(&(%s),%s,%s,&(%s));\n" 
-	(Variable.unparse dst) (unparse_expr src_expr) 
-	(Variable.vstride_of_locative dst)
-	(Variable.unparse_for_alignment alignment_mod dst)
+      sprintf "STN%d(&(%s)%s,%s);\n"
+        !Simdmagic.store_multiple
+        (Variable.unparse dst)
+        (List.fold_right (fun x a -> "," ^ (unparse_expr x) ^ a) stuff "")
+        (Variable.vstride_of_locative dst)
+  | src_expr ->
+      sprintf "ST(&(%s),%s,%s,&(%s));\n"
+        (Variable.unparse dst) (unparse_expr src_expr)
+        (Variable.vstride_of_locative dst)
+        (Variable.unparse_for_alignment alignment_mod dst)
 
 and unparse_expr =
   let rec unparse_plus = function
@@ -91,9 +91,9 @@ and unparse_expr =
   and op3 nam a b c =
     nam ^ "(" ^ (unparse_expr a) ^ ", " ^ (unparse_expr b) ^ ", " ^
     (unparse_plus c) ^ ")"
-  and op2 nam a b = 
+  and op2 nam a b =
     nam ^ "(" ^ (unparse_plus a) ^ ", " ^ (unparse_plus b) ^ ")"
-  and op1 nam a = 
+  and op1 nam a =
     nam ^ "(" ^ (unparse_expr a) ^ ")"
   and negate = function
     | [] -> []
@@ -101,16 +101,16 @@ and unparse_expr =
     | x :: y -> (Uminus x) :: negate y
 
   in function
-    | CTimes(Load tw, src) 
-	when Variable.is_constant tw && !Magic.generate_bytw ->
-	unparse_by_twiddle "BYTW" tw src
-    | CTimesJ(Load tw, src) 
-	when Variable.is_constant tw && !Magic.generate_bytw ->
-	unparse_by_twiddle "BYTWJ" tw src
+    | CTimes(Load tw, src)
+        when Variable.is_constant tw && !Magic.generate_bytw ->
+        unparse_by_twiddle "BYTW" tw src
+    | CTimesJ(Load tw, src)
+        when Variable.is_constant tw && !Magic.generate_bytw ->
+        unparse_by_twiddle "BYTWJ" tw src
     | Load v when is_locative(v) ->
-	sprintf "LD(&(%s), %s, &(%s))" (Variable.unparse v) 
-	  (Variable.vstride_of_locative v)
-	  (Variable.unparse_for_alignment alignment_mod v)
+        sprintf "LD(&(%s), %s, &(%s))" (Variable.unparse v)
+          (Variable.vstride_of_locative v)
+          (Variable.unparse_for_alignment alignment_mod v)
     | Load v when is_constant(v) -> sprintf "LDW(&(%s))" (Variable.unparse v)
     | Load v  -> Variable.unparse v
     | Num n -> sprintf "LDK(%s)" (Number.to_konst n)
@@ -121,56 +121,56 @@ and unparse_expr =
     | Times(NaN I,b) -> op1 "VBYI" b
     | Times(NaN CONJ,b) -> op1 "VCONJ" b
     | Times(a,b) ->
-	sprintf "VMUL(%s, %s)" (unparse_expr a) (unparse_expr b)
+        sprintf "VMUL(%s, %s)" (unparse_expr a) (unparse_expr b)
     | CTimes(a,Times(NaN I, b)) ->
-	sprintf "VZMULI(%s, %s)" (unparse_expr a) (unparse_expr b)
+        sprintf "VZMULI(%s, %s)" (unparse_expr a) (unparse_expr b)
     | CTimes(a,b) ->
-	sprintf "VZMUL(%s, %s)" (unparse_expr a) (unparse_expr b)
+        sprintf "VZMUL(%s, %s)" (unparse_expr a) (unparse_expr b)
     | CTimesJ(a,Times(NaN I, b)) ->
-	sprintf "VZMULIJ(%s, %s)" (unparse_expr a) (unparse_expr b)
+        sprintf "VZMULIJ(%s, %s)" (unparse_expr a) (unparse_expr b)
     | CTimesJ(a,b) ->
-	sprintf "VZMULJ(%s, %s)" (unparse_expr a) (unparse_expr b)
+        sprintf "VZMULJ(%s, %s)" (unparse_expr a) (unparse_expr b)
     | Uminus a when !Magic.vneg -> op1 "VNEG" a
     | Uminus a -> failwith "SIMD Uminus"
     | _ -> failwith "unparse_expr"
 
 and unparse_decl x = C.unparse_decl x
 
-and unparse_ast ast = 
+and unparse_ast ast =
   let rec unparse_assignment = function
     | Assign (v, x) when Variable.is_locative v ->
-	unparse_store v x
-    | Assign (v, x) -> 
-	(Variable.unparse v) ^ " = " ^ (unparse_expr x) ^ ";\n"
+        unparse_store v x
+    | Assign (v, x) ->
+        (Variable.unparse v) ^ " = " ^ (unparse_expr x) ^ ";\n"
 
-  and unparse_annotated force_bracket = 
+  and unparse_annotated force_bracket =
     let rec unparse_code = function
       | ADone -> ""
       | AInstr i -> unparse_assignment i
-      | ASeq (a, b) -> 
-	  (unparse_annotated false a) ^ (unparse_annotated false b)
-    and declare_variables l = 
+      | ASeq (a, b) ->
+          (unparse_annotated false a) ^ (unparse_annotated false b)
+    and declare_variables l =
       let rec uvar = function
-	  [] -> failwith "uvar"
-	|	[v] -> (Variable.unparse v) ^ ";\n"
-	| a :: b -> (Variable.unparse a) ^ ", " ^ (uvar b)
-      in let rec vvar l = 
-	let s = if !Magic.compact then 15 else 1 in
-	if (List.length l <= s) then
-	  match l with
-	    [] -> ""
-	  | _ -> realtype ^ " " ^ (uvar l)
-	else
-	  (vvar (Util.take s l)) ^ (vvar (Util.drop s l))
+          [] -> failwith "uvar"
+        |       [v] -> (Variable.unparse v) ^ ";\n"
+        | a :: b -> (Variable.unparse a) ^ ", " ^ (uvar b)
+      in let rec vvar l =
+        let s = if !Magic.compact then 15 else 1 in
+        if (List.length l <= s) then
+          match l with
+            [] -> ""
+          | _ -> realtype ^ " " ^ (uvar l)
+        else
+          (vvar (Util.take s l)) ^ (vvar (Util.drop s l))
       in vvar (List.filter Variable.is_temporary l)
     in function
         Annotate (_, _, decl, _, code) ->
-          if (not force_bracket) && (Util.null decl) then 
+          if (not force_bracket) && (Util.null decl) then
             unparse_code code
           else "{\n" ^
             (declare_variables decl) ^
             (unparse_code code) ^
-	    "}\n"
+            "}\n"
 
 (* ---- *)
   and unparse_plus = function
@@ -183,7 +183,7 @@ and unparse_ast ast =
   | (Integer _) -> unparse_ast x
   | _ -> "(" ^ (unparse_ast x) ^ ")"
 
-  in match ast with 
+  in match ast with
   | Asch a -> (unparse_annotated true a)
   | Return x -> "return " ^ unparse_ast x ^ ";"
   | Simd_leavefun -> "VLEAVE();"
@@ -193,26 +193,26 @@ and unparse_ast ast =
       ^ ")" ^ unparse_ast d
   | If (a, d) ->
       "if (" ^
-      unparse_ast a 
+      unparse_ast a
       ^ ")" ^ unparse_ast d
   | Block (d, s) ->
       if (s == []) then ""
-      else 
-        "{\n"                                      ^ 
-        foldr_string_concat (map unparse_decl d)   ^ 
+      else
+        "{\n"                                      ^
+        foldr_string_concat (map unparse_decl d)   ^
         foldr_string_concat (map unparse_ast s)    ^
-        "}\n"      
+        "}\n"
   | x -> C.unparse_ast x
 
 and unparse_function = function
     Fcn (typ, name, args, body) ->
       let rec unparse_args = function
-          [Decl (a, b)] -> a ^ " " ^ b 
-	| (Decl (a, b)) :: s -> a ^ " " ^ b  ^ ", "
+          [Decl (a, b)] -> a ^ " " ^ b
+        | (Decl (a, b)) :: s -> a ^ " " ^ b  ^ ", "
             ^  unparse_args s
-	| [] -> ""
-	| _ -> failwith "unparse_function"
-      in 
+        | [] -> ""
+        | _ -> failwith "unparse_function"
+      in
       (typ ^ " " ^ name ^ "(" ^ unparse_args args ^ ")\n" ^
        unparse_ast body)
 
@@ -220,7 +220,7 @@ let extract_constants f =
   let constlist = flatten (map expr_to_constants (C.ast_to_expr_list f))
   in map
        (fun n ->
-	  Tdecl 
-	    ("DVK(" ^ (Number.to_konst n) ^ ", " ^ (Number.to_string n) ^ 
-	       ");\n"))
+          Tdecl
+            ("DVK(" ^ (Number.to_konst n) ^ ", " ^ (Number.to_string n) ^
+               ");\n"))
        (unique_constants constlist)

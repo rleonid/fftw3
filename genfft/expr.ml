@@ -40,7 +40,7 @@ type expr =
 type assignment = Assign of Variable.variable * expr
 
 (* various hash functions *)
-let hash_float x = 
+let hash_float x =
   let (mantissa, exponent) = frexp x
   in truncate (float_of_int(exponent) *. 1234.567 +. mantissa *. 10000.0)
 
@@ -88,7 +88,7 @@ let is_known_constant = function
   | _ -> false
 
 (* expr to string, used for debugging *)
-let rec foldr_string_concat l = 
+let rec foldr_string_concat l =
   match l with
     [] -> ""
   | [a] -> a
@@ -112,7 +112,7 @@ let rec to_string = function
   | Store (v, a) -> "(:= " ^ (Variable.unparse v) ^ " " ^
       (to_string a) ^ ")"
 
-let rec to_string_a d x = 
+let rec to_string_a d x =
   if (d = 0) then "..." else match x with
   | Load v -> Variable.unparse v
   | Num n -> Number.to_konst n
@@ -143,10 +143,10 @@ let rec expr_to_constants = function
   | _ -> []
 
 
-let add_float_key_value list_so_far k = 
+let add_float_key_value list_so_far k =
   if List.exists (fun k2 -> Number.equal k k2) list_so_far then
     list_so_far
   else
     k :: list_so_far
 
-let unique_constants = List.fold_left add_float_key_value [] 
+let unique_constants = List.fold_left add_float_key_value []

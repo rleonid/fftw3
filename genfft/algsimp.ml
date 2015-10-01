@@ -29,7 +29,7 @@ let node_lookup x =  Assoctable.lookup Expr.hash (==) x
 (*************************************************************
  * Algebraic simplifier/elimination of common subexpressions
  *************************************************************)
-module AlgSimp : sig 
+module AlgSimp : sig
   val algsimp : expr list -> expr list
 end = struct
 
@@ -37,7 +37,7 @@ end = struct
   open Monads.MemoMonad
   open Assoctable
 
-  let fetchSimp = 
+  let fetchSimp =
     fetchState >>= fun (s, _) -> returnM s
   let storeSimp s =
     fetchState >>= (fun (_, c) -> storeState (s, c))
@@ -51,35 +51,35 @@ end = struct
   let subset a b =
     List.for_all (fun x -> List.exists (fun y -> x == y) b) a
 
-  let structurallyEqualCSE a b = 
+  let structurallyEqualCSE a b =
     match (a, b) with
     | (Num a, Num b) -> Number.equal a b
     | (NaN a, NaN b) -> a == b
     | (Load a, Load b) -> Variable.same a b
     | (Times (a, a'), Times (b, b')) ->
- 	((a == b) && (a' == b')) ||
- 	((a == b') && (a' == b))
+        ((a == b) && (a' == b')) ||
+        ((a == b') && (a' == b))
     | (CTimes (a, a'), CTimes (b, b')) ->
- 	((a == b) && (a' == b')) ||
- 	((a == b') && (a' == b))
+        ((a == b) && (a' == b')) ||
+        ((a == b') && (a' == b))
     | (CTimesJ (a, a'), CTimesJ (b, b')) -> ((a == b) && (a' == b'))
     | (Plus a, Plus b) -> subset a b && subset b a
     | (Uminus a, Uminus b) -> (a == b)
     | _ -> false
 
-  let hashCSE x = 
+  let hashCSE x =
     if (!Magic.randomized_cse) then
       Oracle.hash x
     else
       Expr.hash x
 
-  let equalCSE a b = 
+  let equalCSE a b =
     if (!Magic.randomized_cse) then
       (structurallyEqualCSE a b || Oracle.likely_equal a b)
     else
       structurallyEqualCSE a b
 
-  let fetchCSE = 
+  let fetchCSE =
     fetchState >>= fun (_, c) -> returnM c
   let storeCSE c =
     fetchState >>= (fun (s, _) -> storeState (s, c))
@@ -90,21 +90,21 @@ end = struct
     fetchCSE >>= fun table ->
       storeCSE (Assoctable.insert hashCSE key value table)
 
-  (* memoize both x and Uminus x (unless x is already negated) *) 
+  (* memoize both x and Uminus x (unless x is already negated) *)
   let identityM x =
     let memo x = memoizing lookupCSEM insertCSEM returnM x in
     match x with
-	Uminus _ -> memo x 
-      |	_ -> memo x >>= fun x' -> memo (Uminus x') >> returnM x'
+        Uminus _ -> memo x
+      | _ -> memo x >>= fun x' -> memo (Uminus x') >> returnM x'
 
   let makeNode = identityM
 
   (* simplifiers for various kinds of nodes *)
   let rec snumM = function
-      n when Number.is_zero n -> 
-	makeNode (Num (Number.zero))
-    | n when Number.negative n -> 
-	makeNode (Num (Number.negate n)) >>= suminusM
+      n when Number.is_zero n ->
+        makeNode (Num (Number.zero))
+    | n when Number.negative n ->
+        makeNode (Num (Number.negate n)) >>= suminusM
     | n -> makeNode (Num n)
 
   and suminusM = function
@@ -112,59 +112,59 @@ end = struct
     | Num a when (Number.is_zero a) -> snumM Number.zero
     | a -> makeNode (Uminus a)
 
-  and stimesM = function 
+  and stimesM = function
     | (Uminus a, b) -> stimesM (a, b) >>= suminusM
     | (a, Uminus b) -> stimesM (a, b) >>= suminusM
-    | (NaN I, CTimes (a, b)) -> stimesM (NaN I, b) >>= 
-	fun ib -> sctimesM (a, ib)
-    | (NaN I, CTimesJ (a, b)) -> stimesM (NaN I, b) >>= 
-	fun ib -> sctimesjM (a, ib)
+    | (NaN I, CTimes (a, b)) -> stimesM (NaN I, b) >>=
+        fun ib -> sctimesM (a, ib)
+    | (NaN I, CTimesJ (a, b)) -> stimesM (NaN I, b) >>=
+        fun ib -> sctimesjM (a, ib)
     | (Num a, Num b) -> snumM (Number.mul a b)
-    | (Num a, Times (Num b, c)) -> 
-	snumM (Number.mul a b) >>= fun x -> stimesM (x, c)
+    | (Num a, Times (Num b, c)) ->
+        snumM (Number.mul a b) >>= fun x -> stimesM (x, c)
     | (Num a, b) when Number.is_zero a -> snumM Number.zero
     | (Num a, b) when Number.is_one a -> makeNode b
     | (Num a, b) when Number.is_mone a -> suminusM b
-    | (a, b) when is_known_constant b && not (is_known_constant a) -> 
-	stimesM (b, a)
+    | (a, b) when is_known_constant b && not (is_known_constant a) ->
+        stimesM (b, a)
     | (a, b) -> makeNode (Times (a, b))
 
-  and sctimesM = function 
+  and sctimesM = function
     | (Uminus a, b) -> sctimesM (a, b) >>= suminusM
     | (a, Uminus b) -> sctimesM (a, b) >>= suminusM
     | (a, b) -> makeNode (CTimes (a, b))
 
-  and sctimesjM = function 
+  and sctimesjM = function
     | (Uminus a, b) -> sctimesjM (a, b) >>= suminusM
     | (a, Uminus b) -> sctimesjM (a, b) >>= suminusM
     | (a, b) -> makeNode (CTimesJ (a, b))
 
   and reduce_sumM x = match x with
     [] -> returnM []
-  | [Num a] -> 
-      if (Number.is_zero a) then 
-	returnM [] 
+  | [Num a] ->
+      if (Number.is_zero a) then
+        returnM []
       else returnM x
-  | [Uminus (Num a)] -> 
-      if (Number.is_zero a) then 
-	returnM [] 
+  | [Uminus (Num a)] ->
+      if (Number.is_zero a) then
+        returnM []
       else returnM x
-  | (Num a) :: (Num b) :: s -> 
+  | (Num a) :: (Num b) :: s ->
       snumM (Number.add a b) >>= fun x ->
-	reduce_sumM (x :: s)
-  | (Num a) :: (Uminus (Num b)) :: s -> 
+        reduce_sumM (x :: s)
+  | (Num a) :: (Uminus (Num b)) :: s ->
       snumM (Number.sub a b) >>= fun x ->
-	reduce_sumM (x :: s)
-  | (Uminus (Num a)) :: (Num b) :: s -> 
+        reduce_sumM (x :: s)
+  | (Uminus (Num a)) :: (Num b) :: s ->
       snumM (Number.sub b a) >>= fun x ->
-	reduce_sumM (x :: s)
-  | (Uminus (Num a)) :: (Uminus (Num b)) :: s -> 
-      snumM (Number.add a b) >>= 
+        reduce_sumM (x :: s)
+  | (Uminus (Num a)) :: (Uminus (Num b)) :: s ->
+      snumM (Number.add a b) >>=
       suminusM >>= fun x ->
-	reduce_sumM (x :: s)
+        reduce_sumM (x :: s)
   | ((Num _) as a) :: b :: s -> reduce_sumM (b :: a :: s)
   | ((Uminus (Num _)) as a) :: b :: s -> reduce_sumM (b :: a :: s)
-  | a :: s -> 
+  | a :: s ->
       reduce_sumM s >>= fun s' -> returnM (a :: s')
 
   and collectible1 = function
@@ -174,83 +174,83 @@ end = struct
   and collectible (a, b) = collectible1 a
 
   (* collect common factors: ax + bx -> (a+b)x *)
-  and collectM which x = 
+  and collectM which x =
     let rec findCoeffM which = function
-      |	Times (a, b) when collectible (which (a, b)) -> returnM (which (a, b))
-      | Uminus x -> 
-	  findCoeffM which x >>= fun (coeff, b) ->
-	    suminusM coeff >>= fun mcoeff ->
- 	      returnM (mcoeff, b)
+      | Times (a, b) when collectible (which (a, b)) -> returnM (which (a, b))
+      | Uminus x ->
+          findCoeffM which x >>= fun (coeff, b) ->
+            suminusM coeff >>= fun mcoeff ->
+              returnM (mcoeff, b)
       | x -> snumM Number.one >>= fun one -> returnM (one, x)
     and separateM xpr = function
- 	[] -> returnM ([], [])
-      |	a :: b ->
- 	  separateM xpr b >>= fun (w, wo) ->
-	    (* try first factor *)
- 	    findCoeffM (fun (a, b) -> (a, b)) a >>= fun (c, x) ->
- 	      if (xpr == x) && collectible (c, x) then returnM (c :: w, wo)
- 	      else
-	      (* try second factor *)
- 		findCoeffM (fun (a, b) -> (b, a)) a >>= fun (c, x) ->
- 		  if (xpr == x) && collectible (c, x) then returnM (c :: w, wo)
- 		  else returnM (w, a :: wo)
+        [] -> returnM ([], [])
+      | a :: b ->
+          separateM xpr b >>= fun (w, wo) ->
+            (* try first factor *)
+            findCoeffM (fun (a, b) -> (a, b)) a >>= fun (c, x) ->
+              if (xpr == x) && collectible (c, x) then returnM (c :: w, wo)
+              else
+              (* try second factor *)
+                findCoeffM (fun (a, b) -> (b, a)) a >>= fun (c, x) ->
+                  if (xpr == x) && collectible (c, x) then returnM (c :: w, wo)
+                  else returnM (w, a :: wo)
     in match x with
       [] -> returnM x
     | [a] -> returnM x
     | a :: b ->
- 	findCoeffM which a >>= fun (_, xpr) ->
- 	  separateM xpr x >>= fun (w, wo) ->
- 	    collectM which wo >>= fun wo' ->
- 	      splusM w >>= fun w' ->
- 		stimesM (w', xpr) >>= fun t' ->
- 		  returnM (t':: wo')
+        findCoeffM which a >>= fun (_, xpr) ->
+          separateM xpr x >>= fun (w, wo) ->
+            collectM which wo >>= fun wo' ->
+              splusM w >>= fun w' ->
+                stimesM (w', xpr) >>= fun t' ->
+                  returnM (t':: wo')
 
   and mangleSumM x = returnM x
-      >>= reduce_sumM 
+      >>= reduce_sumM
       >>= collectM (fun (a, b) -> (a, b))
       >>= collectM (fun (a, b) -> (b, a))
-      >>= reduce_sumM 
+      >>= reduce_sumM
       >>= deepCollectM !Magic.deep_collect_depth
       >>= reduce_sumM
 
   and reorder_uminus = function  (* push all Uminuses to the end *)
       [] -> []
     | ((Uminus _) as a' :: b) -> (reorder_uminus b) @ [a']
-    | (a :: b) -> a :: (reorder_uminus b)                      
+    | (a :: b) -> a :: (reorder_uminus b)
 
-  and canonicalizeM = function 
+  and canonicalizeM = function
       [] -> snumM Number.zero
     | [a] -> makeNode a                    (* one term *)
     | a -> generateFusedMultAddM (reorder_uminus a)
 
-  and generateFusedMultAddM = 
+  and generateFusedMultAddM =
     let rec is_multiplication = function
       | Times (Num a, b) -> true
       | Uminus (Times (Num a, b)) -> true
       | _ -> false
     and separate = function
-	[] -> ([], [], Number.zero)
-      | (Times (Num a, b)) as this :: c -> 
-	  let (x, y, max) = separate c in
-	  let newmax = if (Number.greater a max) then a else max in
-	  (this :: x, y, newmax)
-      | (Uminus (Times (Num a, b))) as this :: c -> 
-	  let (x, y, max) = separate c in
-	  let newmax = if (Number.greater a max) then a else max in
-	  (this :: x, y, newmax)
+        [] -> ([], [], Number.zero)
+      | (Times (Num a, b)) as this :: c ->
+          let (x, y, max) = separate c in
+          let newmax = if (Number.greater a max) then a else max in
+          (this :: x, y, newmax)
+      | (Uminus (Times (Num a, b))) as this :: c ->
+          let (x, y, max) = separate c in
+          let newmax = if (Number.greater a max) then a else max in
+          (this :: x, y, newmax)
       | this :: c ->
-	  let (x, y, max) = separate c in
-	  (x, this :: y, max)
+          let (x, y, max) = separate c in
+          (x, this :: y, max)
     in fun l ->
       if !Magic.enable_fma && count is_multiplication l >= 2 then
-	let (w, wo, max) = separate l in
-	snumM (Number.div Number.one max) >>= fun invmax' ->
-	  snumM max >>= fun max' ->
-	    mapM (fun x -> stimesM (invmax', x)) w >>= splusM >>= fun pw' ->
-	      stimesM (max', pw') >>= fun mw' ->
-		splusM (wo @ [mw'])
-      else 
-	makeNode (Plus l)
+        let (w, wo, max) = separate l in
+        snumM (Number.div Number.one max) >>= fun invmax' ->
+          snumM max >>= fun max' ->
+            mapM (fun x -> stimesM (invmax', x)) w >>= splusM >>= fun pw' ->
+              stimesM (max', pw') >>= fun mw' ->
+                splusM (wo @ [mw'])
+      else
+        makeNode (Plus l)
 
 
   and negative = function
@@ -271,119 +271,117 @@ end = struct
   and deepCollectM maxdepth l =
     let rec findTerms depth x = match x with
       | Uminus x -> findTerms depth x
-      |	Times (Num _, b) -> (findTerms (depth - 1) b)
-      |	Plus l when depth > 0 ->
-	  x :: List.flatten (List.map (findTerms (depth - 1)) l)
-      |	x -> [x]
+      | Times (Num _, b) -> (findTerms (depth - 1) b)
+      | Plus l when depth > 0 ->
+          x :: List.flatten (List.map (findTerms (depth - 1)) l)
+      | x -> [x]
     and duplicates = function
-	[] -> []
-      |	a :: b -> if List.memq a b then a :: duplicates b
+        [] -> []
+      | a :: b -> if List.memq a b then a :: duplicates b
       else duplicates b
 
     in let rec splitDuplicates depth d x =
-      if (List.memq x d) then 
-	snumM (Number.zero) >>= fun zero ->
-	  returnM (zero, x)
+      if (List.memq x d) then
+        snumM (Number.zero) >>= fun zero ->
+          returnM (zero, x)
       else match x with
-      |	Times (a, b) ->
-	  splitDuplicates (depth - 1) d a >>= fun (a', xa) ->
-	    splitDuplicates (depth - 1) d b >>= fun (b', xb) ->
-	      stimesM (a', b') >>= fun ab ->
-		stimesM (a, xb) >>= fun xb' ->
-		  stimesM (xa, b) >>= fun xa' ->
-		    stimesM (xa, xb) >>= fun xab ->
-		      splusM [xa'; xb'; xab] >>= fun x ->
-			returnM (ab, x)
-      | Uminus a -> 
-	  splitDuplicates depth d a >>= fun (x, y) ->
-	    suminusM x >>= fun ux -> 
-	      suminusM y >>= fun uy -> 
-		returnM (ux, uy)
-      |	Plus l when depth > 0 -> 
-	  mapM (splitDuplicates (depth - 1) d) l >>= fun ld ->
-	    let (l', d') = List.split ld in
-	    splusM l' >>= fun p ->
-	      splusM d' >>= fun d'' ->
-	      returnM (p, d'')
-      |	x -> 
-	  snumM (Number.zero) >>= fun zero' ->
-	    returnM (x, zero')
+      | Times (a, b) ->
+          splitDuplicates (depth - 1) d a >>= fun (a', xa) ->
+            splitDuplicates (depth - 1) d b >>= fun (b', xb) ->
+              stimesM (a', b') >>= fun ab ->
+                stimesM (a, xb) >>= fun xb' ->
+                  stimesM (xa, b) >>= fun xa' ->
+                    stimesM (xa, xb) >>= fun xab ->
+                      splusM [xa'; xb'; xab] >>= fun x ->
+                        returnM (ab, x)
+      | Uminus a ->
+          splitDuplicates depth d a >>= fun (x, y) ->
+            suminusM x >>= fun ux ->
+              suminusM y >>= fun uy ->
+                returnM (ux, uy)
+      | Plus l when depth > 0 ->
+          mapM (splitDuplicates (depth - 1) d) l >>= fun ld ->
+            let (l', d') = List.split ld in
+            splusM l' >>= fun p ->
+              splusM d' >>= fun d'' ->
+              returnM (p, d'')
+      | x ->
+          snumM (Number.zero) >>= fun zero' ->
+            returnM (x, zero')
 
     in let l' = List.flatten (List.map (findTerms maxdepth) l)
     in match duplicates l' with
     | [] -> returnM l
     | d ->
-	mapM (splitDuplicates maxdepth d) l >>= fun ld ->
-	  let (l', d') = List.split ld in
-	  splusM l' >>= fun l'' ->
-	    let rec flattenPlusM = function
-	      | Plus l -> returnM l
-	      | Uminus x ->
-		  flattenPlusM x >>= mapM suminusM
-	      | x -> returnM [x]
-	    in
-	    mapM flattenPlusM d' >>= fun d'' ->
-	      splusM (List.flatten d'') >>= fun d''' ->
-		mangleSumM [l''; d''']
+        mapM (splitDuplicates maxdepth d) l >>= fun ld ->
+          let (l', d') = List.split ld in
+          splusM l' >>= fun l'' ->
+            let rec flattenPlusM = function
+              | Plus l -> returnM l
+              | Uminus x ->
+                  flattenPlusM x >>= mapM suminusM
+              | x -> returnM [x]
+            in
+            mapM flattenPlusM d' >>= fun d'' ->
+              splusM (List.flatten d'') >>= fun d''' ->
+                mangleSumM [l''; d''']
 
   and splusM l =
-    let fma_heuristics x = 
-      if !Magic.enable_fma then 
-	match x with
-	| [Uminus (Times _); Times _] -> Some false
-	| [Times _; Uminus (Times _)] -> Some false
-	| [Uminus (_); Times _] -> Some true
-	| [Times _; Uminus (Plus _)] -> Some true
-	| [_; Uminus (Times _)] -> Some false
-	| [Uminus (Times _); _] -> Some false
-	| _ -> None
+    let fma_heuristics x =
+      if !Magic.enable_fma then
+        match x with
+        | [Uminus (Times _); Times _] -> Some false
+        | [Times _; Uminus (Times _)] -> Some false
+        | [Uminus (_); Times _] -> Some true
+        | [Times _; Uminus (Plus _)] -> Some true
+        | [_; Uminus (Times _)] -> Some false
+        | [Uminus (Times _); _] -> Some false
+        | _ -> None
       else
-	None
+        None
     in
     mangleSumM l >>=  fun l' ->
       (* no terms are negative.  Don't do anything *)
       if not (List.exists negative l') then
-	canonicalizeM l'
+        canonicalizeM l'
       (* all terms are negative.  Negate them all and collect the minus sign *)
-      else if List.for_all negative l' then
-	mapM suminusM l' >>= splusM >>= suminusM
       else match fma_heuristics l' with
-      |	Some true -> mapM suminusM l' >>= splusM >>= suminusM
-      |	Some false -> canonicalizeM l'
-      |	None ->
+      | Some true -> mapM suminusM l' >>= splusM >>= suminusM
+      | Some false -> canonicalizeM l'
+      | None ->
          (* Ask the Oracle for the canonical form *)
-	  if (not !Magic.randomized_cse) &&
-	    Oracle.should_flip_sign (Plus l') then
-	    mapM suminusM l' >>= splusM >>= suminusM
-	  else
-	    canonicalizeM l'
+          if (not !Magic.randomized_cse) &&
+            Oracle.should_flip_sign (Plus l') then
+            mapM suminusM l' >>= splusM >>= suminusM
+          else
+            canonicalizeM l'
 
   (* monadic style algebraic simplifier for the dag *)
   let rec algsimpM x =
-    memoizing lookupSimpM insertSimpM 
-      (function 
- 	| Num a -> snumM a
- 	| NaN _ as x -> makeNode x
- 	| Plus a -> 
- 	    mapM algsimpM a >>= splusM
- 	| Times (a, b) -> 
- 	    (algsimpM a >>= fun a' ->
- 	      algsimpM b >>= fun b' ->
- 		stimesM (a', b'))
- 	| CTimes (a, b) -> 
- 	    (algsimpM a >>= fun a' ->
- 	      algsimpM b >>= fun b' ->
-		sctimesM (a', b'))
- 	| CTimesJ (a, b) -> 
- 	    (algsimpM a >>= fun a' ->
- 	      algsimpM b >>= fun b' ->
-		sctimesjM (a', b'))
- 	| Uminus a -> 
- 	    algsimpM a >>= suminusM 
- 	| Store (v, a) ->
- 	    algsimpM a >>= fun a' ->
- 	      makeNode (Store (v, a'))
- 	| Load _ as x -> makeNode x)
+    memoizing lookupSimpM insertSimpM
+      (function
+        | Num a -> snumM a
+        | NaN _ as x -> makeNode x
+        | Plus a ->
+            mapM algsimpM a >>= splusM
+        | Times (a, b) ->
+            (algsimpM a >>= fun a' ->
+              algsimpM b >>= fun b' ->
+                stimesM (a', b'))
+        | CTimes (a, b) ->
+            (algsimpM a >>= fun a' ->
+              algsimpM b >>= fun b' ->
+                sctimesM (a', b'))
+        | CTimesJ (a, b) ->
+            (algsimpM a >>= fun a' ->
+              algsimpM b >>= fun b' ->
+                sctimesjM (a', b'))
+        | Uminus a ->
+            algsimpM a >>= suminusM
+        | Store (v, a) ->
+            algsimpM a >>= fun a' ->
+              makeNode (Store (v, a'))
+        | Load _ as x -> makeNode x)
       x
 
    let initialTable = (empty, empty)
@@ -413,81 +411,81 @@ module Transpose = struct
   let rec visit visited vtable parent_table = function
       [] -> (visited, parent_table)
     | node :: rest ->
-	match node_lookup node vtable with
-	| Some _ -> visit visited vtable parent_table rest
-	| None ->
-	    let children = match node with
-	    | Store (v, n) -> [n]
-	    | Plus l -> l
-	    | Times (a, b) -> [a; b]
-	    | CTimes (a, b) -> [a; b]
-	    | CTimesJ (a, b) -> [a; b]
-	    | Uminus x -> [x]
-	    | _ -> []
-	    in let rec loop t = function
-		[] -> t
-	      |	a :: rest ->
-		  (match node_lookup a t with
-		    None -> loop (node_insert a [node] t) rest
-		  | Some c -> loop (node_insert a (node :: c) t) rest)
-	    in 
-	    (visit 
-	       (node :: visited)
-	       (node_insert node () vtable)
-	       (loop parent_table children)
-	       (children @ rest))
+        match node_lookup node vtable with
+        | Some _ -> visit visited vtable parent_table rest
+        | None ->
+            let children = match node with
+            | Store (v, n) -> [n]
+            | Plus l -> l
+            | Times (a, b) -> [a; b]
+            | CTimes (a, b) -> [a; b]
+            | CTimesJ (a, b) -> [a; b]
+            | Uminus x -> [x]
+            | _ -> []
+            in let rec loop t = function
+                [] -> t
+              | a :: rest ->
+                  (match node_lookup a t with
+                    None -> loop (node_insert a [node] t) rest
+                  | Some c -> loop (node_insert a (node :: c) t) rest)
+            in
+            (visit
+               (node :: visited)
+               (node_insert node () vtable)
+               (loop parent_table children)
+               (children @ rest))
 
   let make_transposer parent_table =
-    let rec termM node candidate_parent = 
+    let rec termM node candidate_parent =
       match candidate_parent with
-      |	Store (_, n) when n == node -> 
-	  dualM candidate_parent >>= fun x' -> returnM [x']
-      | Plus (l) when List.memq node l -> 
-	  dualM candidate_parent >>= fun x' -> returnM [x']
-      | Times (a, b) when b == node -> 
-	  dualM candidate_parent >>= fun x' -> 
-	    returnM [makeTimes (a, x')]
-      | CTimes (a, b) when b == node -> 
-	  dualM candidate_parent >>= fun x' -> 
-	    returnM [CTimes (a, x')]
-      | CTimesJ (a, b) when b == node -> 
-	  dualM candidate_parent >>= fun x' -> 
-	    returnM [CTimesJ (a, x')]
-      | Uminus n when n == node -> 
-	  dualM candidate_parent >>= fun x' -> 
-	    returnM [makeUminus x']
+      | Store (_, n) when n == node ->
+          dualM candidate_parent >>= fun x' -> returnM [x']
+      | Plus (l) when List.memq node l ->
+          dualM candidate_parent >>= fun x' -> returnM [x']
+      | Times (a, b) when b == node ->
+          dualM candidate_parent >>= fun x' ->
+            returnM [makeTimes (a, x')]
+      | CTimes (a, b) when b == node ->
+          dualM candidate_parent >>= fun x' ->
+            returnM [CTimes (a, x')]
+      | CTimesJ (a, b) when b == node ->
+          dualM candidate_parent >>= fun x' ->
+            returnM [CTimesJ (a, x')]
+      | Uminus n when n == node ->
+          dualM candidate_parent >>= fun x' ->
+            returnM [makeUminus x']
       | _ -> returnM []
-    
-    and dualExpressionM this_node = 
-      mapM (termM this_node) 
-	(match node_lookup this_node parent_table with
-	| Some a -> a
-	| None -> failwith "bug in dualExpressionM"
-	) >>= fun l ->
-	returnM (makePlus (List.flatten l))
+
+    and dualExpressionM this_node =
+      mapM (termM this_node)
+        (match node_lookup this_node parent_table with
+        | Some a -> a
+        | None -> failwith "bug in dualExpressionM"
+        ) >>= fun l ->
+        returnM (makePlus (List.flatten l))
 
     and dualM this_node =
       memoizing lookupDualsM insertDualsM
-	(function
-	  | Load v as x -> 
-	      if (Variable.is_constant v) then
-		returnM (Load v)
-	      else
-		(dualExpressionM x >>= fun d ->
-		  returnM (Store (v, d)))
-	  | Store (v, x) -> returnM (Load v)
-	  | x -> dualExpressionM x)
-	this_node
+        (function
+          | Load v as x ->
+              if (Variable.is_constant v) then
+                returnM (Load v)
+              else
+                (dualExpressionM x >>= fun d ->
+                  returnM (Store (v, d)))
+          | Store (v, x) -> returnM (Load v)
+          | x -> dualExpressionM x)
+        this_node
 
     in dualM
 
-  let is_store = function 
+  let is_store = function
     | Store _ -> true
     | _ -> false
 
-  let transpose dag = 
+  let transpose dag =
     let _ = Util.info "begin transpose" in
-    let (all_nodes, parent_table) = 
+    let (all_nodes, parent_table) =
       visit [] Assoctable.empty Assoctable.empty dag in
     let transposerM = make_transposer parent_table in
     let mapTransposerM = mapM transposerM in
@@ -512,36 +510,36 @@ end = struct
   let rec visit visited vtable = function
       [] -> visited
     | node :: rest ->
-	match node_lookup node vtable with
-	  Some _ -> visit visited vtable rest
-	| None ->
-	    let children = match node with
-	      Store (v, n) -> [n]
-	    | Plus l -> l
-	    | Times (a, b) -> [a; b]
-	    | Uminus x -> [x]
-	    | _ -> []
-	    in visit (node :: visited)
-	      (node_insert node () vtable)
-	      (children @ rest)
+        match node_lookup node vtable with
+          Some _ -> visit visited vtable rest
+        | None ->
+            let children = match node with
+              Store (v, n) -> [n]
+            | Plus l -> l
+            | Times (a, b) -> [a; b]
+            | Uminus x -> [x]
+            | _ -> []
+            in visit (node :: visited)
+              (node_insert node () vtable)
+              (children @ rest)
 
-  let complexity dag = 
-    let rec loop (load, store, plus, times, uminus, num) = function 
-      	[] -> (load, store, plus, times, uminus, num)
+  let complexity dag =
+    let rec loop (load, store, plus, times, uminus, num) = function
+        [] -> (load, store, plus, times, uminus, num)
       | node :: rest ->
-	  loop
-	    (match node with
-	    | Load _ -> (load + 1, store, plus, times, uminus, num)
-	    | Store _ -> (load, store + 1, plus, times, uminus, num)
-	    | Plus x -> (load, store, plus + (List.length x - 1), times, uminus, num)
-	    | Times _ -> (load, store, plus, times + 1, uminus, num)
-	    | Uminus _ -> (load, store, plus, times, uminus + 1, num)
-	    | Num _ -> (load, store, plus, times, uminus, num + 1)
-	    | CTimes _ -> (load, store, plus, times, uminus, num)
-	    | CTimesJ _ -> (load, store, plus, times, uminus, num)
-	    | NaN _ -> (load, store, plus, times, uminus, num))
-	    rest
-    in let (l, s, p, t, u, n) = 
+          loop
+            (match node with
+            | Load _ -> (load + 1, store, plus, times, uminus, num)
+            | Store _ -> (load, store + 1, plus, times, uminus, num)
+            | Plus x -> (load, store, plus + (List.length x - 1), times, uminus, num)
+            | Times _ -> (load, store, plus, times + 1, uminus, num)
+            | Uminus _ -> (load, store, plus, times, uminus + 1, num)
+            | Num _ -> (load, store, plus, times, uminus, num + 1)
+            | CTimes _ -> (load, store, plus, times, uminus, num)
+            | CTimesJ _ -> (load, store, plus, times, uminus, num)
+            | NaN _ -> (load, store, plus, times, uminus, num))
+            rest
+    in let (l, s, p, t, u, n) =
       loop (0, 0, 0, 0, 0, 0) (visit [] Assoctable.empty dag)
     in (l, s, p, t, u, n)
 
@@ -553,18 +551,18 @@ end = struct
 
   let to_string (l, s, p, t, u, n) =
     Printf.sprintf "ld=%d st=%d add=%d mul=%d uminus=%d num=%d\n"
-		   l s p t u n
-		   
-end    
+                   l s p t u n
+
+end
 
 (* simplify the dag *)
-let algsimp v = 
+let algsimp v =
   let rec simplification_loop v =
     let () = Util.info "simplification step" in
     let complexity = Stats.complexity v in
     let () = Util.info ("complexity = " ^ (Stats.to_string complexity)) in
-    let v = (AlgSimp.algsimp @@ Transpose.transpose @@ 
-	     AlgSimp.algsimp @@ Transpose.transpose) v in
+    let v = (AlgSimp.algsimp @@ Transpose.transpose @@
+             AlgSimp.algsimp @@ Transpose.transpose) v in
     let complexity' = Stats.complexity v in
     let () = Util.info ("complexity = " ^ (Stats.to_string complexity')) in
     if (Stats.leq_complexity complexity' complexity) then

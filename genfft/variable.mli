@@ -31,7 +31,7 @@ val same_class : variable -> variable -> bool
 val make_temporary : unit -> variable
 val make_constant : Unique.unique -> string -> variable
 val make_locative :
-  Unique.unique -> Unique.unique -> (int -> string) -> 
+  Unique.unique -> Unique.unique -> (int -> string) ->
   int -> string -> variable
 val unparse : variable -> string
 val unparse_for_alignment : int -> variable -> string

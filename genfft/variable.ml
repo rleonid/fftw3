@@ -19,12 +19,12 @@
  *
  *)
 
-type variable = 
+type variable =
       (* temporary variables generated automatically *)
   | Temporary of int
       (* memory locations, e.g., array elements *)
   | Locative of (Unique.unique * Unique.unique *
-		   (int -> string) * int * string)
+                   (int -> string) * int * string)
       (* constant values, e.g., twiddle factors *)
   | Constant of (Unique.unique * string)
 
@@ -44,13 +44,13 @@ let is_locative = function
   | Locative _ -> true
   | _ -> false
 
-let same_location a b = 
+let same_location a b =
   match (a, b) with
   | (Locative (location_a, _, _, _, _), Locative (location_b, _, _, _, _)) ->
       Unique.same location_a location_b
   | _ -> false
 
-let same_class a b = 
+let same_class a b =
   match (a, b) with
   | (Locative (_, class_a, _, _, _), Locative (_, class_b, _, _, _)) ->
       Unique.same class_a class_b
@@ -65,7 +65,7 @@ let make_temporary =
     Temporary !tmp_count
   end
 
-let make_constant class_token name = 
+let make_constant class_token name =
   Constant (class_token, name)
 
 let make_locative location_token class_token name i vs =
@@ -76,15 +76,15 @@ let vstride_of_locative = function
   | _ -> failwith "vstride_of_locative"
 
 (* special naming conventions for variables *)
-let rec base62_of_int k = 
-  let x = k mod 62 
+let rec base62_of_int k =
+  let x = k mod 62
   and y = k / 62 in
-  let c = 
-    if x < 10 then 
+  let c =
+    if x < 10 then
       Char.chr (x + Char.code '0')
     else if x < 36 then
       Char.chr (x + Char.code 'a' - 10)
-    else 
+    else
       Char.chr (x + Char.code 'A' - 36)
   in
   let s = String.make 1 c in

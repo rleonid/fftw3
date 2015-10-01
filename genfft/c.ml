@@ -38,9 +38,9 @@ let constrealtypep = constrealtype ^ " *"
 let stridetype = "stride"
 
 (***********************************
- * C program structure 
+ * C program structure
  ***********************************)
-type c_decl = 
+type c_decl =
   | Decl of string * string
   | Tdecl of string                (* arbitrary text declaration *)
 
@@ -70,37 +70,37 @@ let ctimes = function
   | a, b -> ITimes (a, b)
 
 (*
- * C AST unparser 
+ * C AST unparser
  *)
 let foldr_string_concat l = fold_right (^) l ""
 
 let rec unparse_expr_c =
   let yes x = x and no x = "" in
 
-  let rec unparse_plus maybe = 
+  let rec unparse_plus maybe =
     let maybep = maybe " + " in
     function
     | [] -> ""
-    | (Uminus (Times (a, b))) :: (Uminus c) :: d -> 
-	maybep ^ (op "FNMA" a b c) ^ (unparse_plus yes d)
-    | (Uminus c) :: (Uminus (Times (a, b))) :: d -> 
-	maybep ^ (op "FNMA" a b c) ^ (unparse_plus yes d)
-    | (Uminus (Times (a, b))) :: c :: d -> 
-	maybep ^ (op "FNMS" a b c) ^ (unparse_plus yes d)
-    | c :: (Uminus (Times (a, b))) :: d -> 
-	maybep ^ (op "FNMS" a b c) ^ (unparse_plus yes d)
-    | (Times (a, b)) :: (Uminus c) :: d -> 
-	maybep ^ (op "FMS" a b c) ^ (unparse_plus yes d)
-    | (Uminus c) :: (Times (a, b)) :: d -> 
-	maybep ^ (op "FMS" a b c) ^ (unparse_plus yes d)
-    | (Times (a, b)) :: c :: d -> 
-	maybep ^ (op "FMA" a b c) ^ (unparse_plus yes d)
-    | c :: (Times (a, b)) :: d -> 
-	maybep ^ (op "FMA" a b c) ^ (unparse_plus yes d)
-    | (Uminus a :: b) -> 
-	" - " ^ (parenthesize a) ^ (unparse_plus yes b)
-    | (a :: b) -> 
-	maybep ^ (parenthesize a) ^ (unparse_plus yes b)
+    | (Uminus (Times (a, b))) :: (Uminus c) :: d ->
+        maybep ^ (op "FNMA" a b c) ^ (unparse_plus yes d)
+    | (Uminus c) :: (Uminus (Times (a, b))) :: d ->
+        maybep ^ (op "FNMA" a b c) ^ (unparse_plus yes d)
+    | (Uminus (Times (a, b))) :: c :: d ->
+        maybep ^ (op "FNMS" a b c) ^ (unparse_plus yes d)
+    | c :: (Uminus (Times (a, b))) :: d ->
+        maybep ^ (op "FNMS" a b c) ^ (unparse_plus yes d)
+    | (Times (a, b)) :: (Uminus c) :: d ->
+        maybep ^ (op "FMS" a b c) ^ (unparse_plus yes d)
+    | (Uminus c) :: (Times (a, b)) :: d ->
+        maybep ^ (op "FMS" a b c) ^ (unparse_plus yes d)
+    | (Times (a, b)) :: c :: d ->
+        maybep ^ (op "FMA" a b c) ^ (unparse_plus yes d)
+    | c :: (Times (a, b)) :: d ->
+        maybep ^ (op "FMA" a b c) ^ (unparse_plus yes d)
+    | (Uminus a :: b) ->
+        " - " ^ (parenthesize a) ^ (unparse_plus yes b)
+    | (a :: b) ->
+        maybep ^ (parenthesize a) ^ (unparse_plus yes b)
   and parenthesize x = match x with
   | (Load _) -> unparse_expr_c x
   | (Num _) -> unparse_expr_c x
@@ -108,7 +108,7 @@ let rec unparse_expr_c =
   and op nam a b c =
     nam ^ "(" ^ (unparse_expr_c a) ^ ", " ^ (unparse_expr_c b) ^ ", " ^
     (unparse_expr_c c) ^ ")"
-      			      
+
   in function
     | Load v -> Variable.unparse v
     | Num n -> Number.to_konst n
@@ -120,12 +120,12 @@ let rec unparse_expr_c =
     | Uminus a -> "- " ^ (parenthesize a)
     | _ -> failwith "unparse_expr_c"
 
-and unparse_expr_generic = 
+and unparse_expr_generic =
   let rec u x = unparse_expr_generic x
   and unary op a = Printf.sprintf "%s(%s)" op (u a)
   and binary op a b = Printf.sprintf "%s(%s, %s)" op (u a) (u b)
   and ternary op a b c = Printf.sprintf "%s(%s, %s, %s)" op (u a) (u b) (u c)
-  and quaternary op a b c d = 
+  and quaternary op a b c d =
     Printf.sprintf "%s(%s, %s, %s, %s)" op (u a) (u b) (u c) (u d)
   and unparse_plus = function
     | [(Uminus (Times (a, b))); Times (c, d)] -> quaternary "FNMMS" a b c d
@@ -142,14 +142,14 @@ and unparse_expr_generic =
     | a :: b :: c -> binary "ADD" a (Plus (b :: c))
     | _ -> failwith "unparse_plus"
   in function
-    | Load v -> Variable.unparse v 
+    | Load v -> Variable.unparse v
     | Num n -> Number.to_konst n
     | Plus a -> unparse_plus a
     | Times (a, b) -> binary "MUL" a b
     | Uminus a -> unary "NEG" a
     | _ -> failwith "unparse_expr"
 
-and unparse_expr x = 
+and unparse_expr x =
   if !Magic.generic_arith then
     unparse_expr_generic x
   else
@@ -158,40 +158,40 @@ and unparse_expr x =
 and unparse_assignment (Assign (v, x)) =
   (Variable.unparse v) ^ " = " ^ (unparse_expr x) ^ ";\n"
 
-and unparse_annotated force_bracket = 
+and unparse_annotated force_bracket =
   let rec unparse_code = function
       ADone -> ""
     | AInstr i -> unparse_assignment i
-    | ASeq (a, b) -> 
+    | ASeq (a, b) ->
         (unparse_annotated false a) ^ (unparse_annotated false b)
-  and declare_variables l = 
+  and declare_variables l =
     let rec uvar = function
-	[] -> failwith "uvar"
-      |	[v] -> (Variable.unparse v) ^ ";\n"
+        [] -> failwith "uvar"
+      | [v] -> (Variable.unparse v) ^ ";\n"
       | a :: b -> (Variable.unparse a) ^ ", " ^ (uvar b)
-    in let rec vvar l = 
+    in let rec vvar l =
       let s = if !Magic.compact then 15 else 1 in
       if (List.length l <= s) then
-	match l with
-	  [] -> ""
-	| _ -> extended_realtype ^ " " ^ (uvar l)
+        match l with
+          [] -> ""
+        | _ -> extended_realtype ^ " " ^ (uvar l)
       else
-	(vvar (Util.take s l)) ^ (vvar (Util.drop s l))
+        (vvar (Util.take s l)) ^ (vvar (Util.drop s l))
     in vvar (List.filter Variable.is_temporary l)
   in function
       Annotate (_, _, decl, _, code) ->
-        if (not force_bracket) && (Util.null decl) then 
+        if (not force_bracket) && (Util.null decl) then
           unparse_code code
         else "{\n" ^
           (declare_variables decl) ^
           (unparse_code code) ^
-	  "}\n"
+          "}\n"
 
 and unparse_decl = function
   | Decl (a, b) -> a ^ " " ^ b ^ ";\n"
   | Tdecl x -> x
 
-and unparse_ast = 
+and unparse_ast =
   let rec unparse_plus = function
     | [] -> ""
     | (CUminus a :: b) -> " - " ^ (parenthesize a) ^ (unparse_plus b)
@@ -208,20 +208,20 @@ and unparse_ast =
     | Simd_leavefun -> "" (* used only in SIMD code *)
     | Return x -> "return " ^ unparse_ast x ^ ";"
     | For (a, b, c, d) ->
-	"for (" ^
-	unparse_ast a ^ "; " ^ unparse_ast b ^ "; " ^ unparse_ast c
-	^ ")" ^ unparse_ast d
+        "for (" ^
+        unparse_ast a ^ "; " ^ unparse_ast b ^ "; " ^ unparse_ast c
+        ^ ")" ^ unparse_ast d
     | If (a, d) ->
-	"if (" ^
-	unparse_ast a 
-	^ ")" ^ unparse_ast d
+        "if (" ^
+        unparse_ast a
+        ^ ")" ^ unparse_ast d
     | Block (d, s) ->
-	if (s == []) then ""
-	else 
-          "{\n"                                      ^ 
-          foldr_string_concat (map unparse_decl d)   ^ 
+        if (s == []) then ""
+        else
+          "{\n"                                      ^
+          foldr_string_concat (map unparse_decl d)   ^
           foldr_string_concat (map unparse_ast s)    ^
-          "}\n"      
+          "}\n"
     | Binop (op, a, b) -> (unparse_ast a) ^ op ^ (unparse_ast b)
     | Expr_assign (a, b) -> (unparse_ast a) ^ " = " ^ (unparse_ast b)
     | Stmt_assign (a, b) -> (unparse_ast a) ^ " = " ^ (unparse_ast b) ^ ";\n"
@@ -238,12 +238,12 @@ and unparse_ast =
 and unparse_function = function
     Fcn (typ, name, args, body) ->
       let rec unparse_args = function
-          [Decl (a, b)] -> a ^ " " ^ b 
-	| (Decl (a, b)) :: s -> a ^ " " ^ b  ^ ", "
+          [Decl (a, b)] -> a ^ " " ^ b
+        | (Decl (a, b)) :: s -> a ^ " " ^ b  ^ ", "
             ^  unparse_args s
-	| [] -> ""
-	| _ -> failwith "unparse_function"
-      in 
+        | [] -> ""
+        | _ -> failwith "unparse_function"
+      in
       (typ ^ " " ^ name ^ "(" ^ unparse_args args ^ ")\n" ^
        unparse_ast body)
 
@@ -252,10 +252,10 @@ and unparse_function = function
  * traverse a a function and return a list of all expressions,
  * in the execution order
  **************************************************************)
-let rec fcn_to_expr_list = fun (Fcn (_, _, _, body)) -> ast_to_expr_list body 
+let rec fcn_to_expr_list = fun (Fcn (_, _, _, body)) -> ast_to_expr_list body
 and acode_to_expr_list = function
     AInstr (Assign (_, x)) -> [x]
-  | ASeq (a, b) -> 
+  | ASeq (a, b) ->
       (asched_to_expr_list a) @ (asched_to_expr_list b)
   | _ -> []
 and asched_to_expr_list (Annotate (_, _, _, _, code)) =
@@ -278,13 +278,13 @@ let extract_constants f =
   let constlist = flatten (map expr_to_constants (ast_to_expr_list f))
   in map
        (fun n ->
-	  Tdecl 
-	    ("DK(" ^ (Number.to_konst n) ^ ", " ^ (Number.to_string n) ^ 
-	       ");\n"))
+          Tdecl
+            ("DK(" ^ (Number.to_konst n) ^ ", " ^ (Number.to_string n) ^
+               ");\n"))
        (unique_constants constlist)
-       
+
 (******************************
-   Extracting operation counts 
+   Extracting operation counts
  ******************************)
 
 let count_stack_vars =
@@ -303,7 +303,7 @@ let count_stack_vars =
 
 let count_memory_acc f =
   let rec count_var v =
-    if (Variable.is_locative v)	then 1 else 0
+    if (Variable.is_locative v) then 1 else 0
   and count_acode = function
     | AInstr (Assign (v, _)) -> count_var v
     | ASeq (a, b) -> (count_asched a) + (count_asched b)
@@ -324,7 +324,7 @@ let count_memory_acc f =
     | Uminus a -> count_acc_expr_func acc a
     | _ -> acc
   in let (Fcn (typ, name, args, body)) = f
-  in (count_ast body) + 
+  in (count_ast body) +
     fold_left count_acc_expr_func 0 (fcn_to_expr_list f)
 
 let good_for_fma = To_alist.good_for_fma
@@ -338,33 +338,33 @@ let build_fma = function
 
 let rec count_flops_expr_func (adds, mults, fmas) = function
   | Plus [] -> (adds, mults, fmas)
-  | Plus ([_; _] as a) -> 
+  | Plus ([_; _] as a) ->
       begin
-	match build_fma a with
-	  | None ->
-	      fold_left count_flops_expr_func 
-		(adds + (length a) - 1, mults, fmas) a
-	  | Some (a, b, c) ->
-	      fold_left count_flops_expr_func (adds, mults, fmas+1) [a; b; c]
+        match build_fma a with
+          | None ->
+              fold_left count_flops_expr_func
+                (adds + (length a) - 1, mults, fmas) a
+          | Some (a, b, c) ->
+              fold_left count_flops_expr_func (adds, mults, fmas+1) [a; b; c]
       end
-  | Plus (a :: b) -> 
+  | Plus (a :: b) ->
       count_flops_expr_func (adds, mults, fmas) (Plus [a; Plus b])
   | Times (NaN MULTI_A,_)  -> (adds, mults, fmas)
   | Times (NaN MULTI_B,_)  -> (adds, mults, fmas)
   | Times (NaN I,b) -> count_flops_expr_func (adds, mults, fmas) b
   | Times (NaN CONJ,b) -> count_flops_expr_func (adds, mults, fmas) b
   | Times (a,b) -> fold_left count_flops_expr_func (adds, mults+1, fmas) [a; b]
-  | CTimes (a,b) -> 
+  | CTimes (a,b) ->
       fold_left count_flops_expr_func (adds+1, mults+2, fmas) [a; b]
-  | CTimesJ (a,b) -> 
+  | CTimesJ (a,b) ->
       fold_left count_flops_expr_func (adds+1, mults+2, fmas) [a; b]
   | Uminus a -> count_flops_expr_func (adds, mults, fmas) a
   | _ -> (adds, mults, fmas)
 
-let count_flops f = 
+let count_flops f =
     fold_left count_flops_expr_func (0, 0, 0) (fcn_to_expr_list f)
 
-let count_constants f = 
+let count_constants f =
     length (unique_constants (flatten (map expr_to_constants (fcn_to_expr_list f))))
 
 let arith_complexity f =
@@ -376,7 +376,7 @@ let arith_complexity f =
 
 (* print the operation costs *)
 let print_cost f =
-  let Fcn (_, _, _, _) = f 
+  let Fcn (_, _, _, _) = f
   and (a, m, fmas, v, c, mem) = arith_complexity f
   in
   "/*\n"^
@@ -393,9 +393,9 @@ let print_cost f =
   " */\n"
 
 (*****************************************
- * functions that create C arrays 
+ * functions that create C arrays
  *****************************************)
-type stride = 
+type stride =
   | SVar of string
   | SConst of string
   | SInteger of int
@@ -413,39 +413,39 @@ let rec simplify_stride stride i =
     | (SInteger n, i) -> Simple (n * i)
     | (SConst s, i) -> Constant (s, i)
     | (SVar s, i) -> Composite (s, i)
-    | (SNeg x, i) -> 
-	match (simplify_stride x i) with
-	| Negative y -> y
-	| y -> Negative y
-  
+    | (SNeg x, i) ->
+        match (simplify_stride x i) with
+        | Negative y -> y
+        | y -> Negative y
+
 let rec cstride_to_string = function
   | Simple i -> string_of_int i
-  | Constant (s, i) -> 
+  | Constant (s, i) ->
         if !Magic.lisp_syntax then
-	  "(* " ^ s ^ " " ^ (string_of_int i) ^ ")"
-	else
-	  s ^ " * " ^ (string_of_int i)
-  | Composite (s, i) -> 
+          "(* " ^ s ^ " " ^ (string_of_int i) ^ ")"
+        else
+          s ^ " * " ^ (string_of_int i)
+  | Composite (s, i) ->
         if !Magic.lisp_syntax then
-	  "(* " ^ s ^ " " ^ (string_of_int i) ^ ")"
-	else
-	  "WS(" ^ s ^ ", " ^ (string_of_int i) ^ ")"
+          "(* " ^ s ^ " " ^ (string_of_int i) ^ ")"
+        else
+          "WS(" ^ s ^ ", " ^ (string_of_int i) ^ ")"
   | Negative x -> "-" ^ cstride_to_string x
 
-let aref name index = 
+let aref name index =
   if !Magic.lisp_syntax then
     Printf.sprintf "(aref %s %s)"  name index
   else
     Printf.sprintf "%s[%s]"  name index
 
-let array_subscript name stride k = 
+let array_subscript name stride k =
   aref name (cstride_to_string (simplify_stride stride k))
 
-let varray_subscript name vstride stride v i = 
+let varray_subscript name vstride stride v i =
   let vindex = simplify_stride vstride v
   and iindex = simplify_stride stride i
-  in 
-  let index = 
+  in
+  let index =
     match (vindex, iindex) with
       (Simple vi, Simple ii) -> string_of_int (vi + ii)
     | (Simple 0, x) -> cstride_to_string x

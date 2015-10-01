@@ -35,7 +35,7 @@ open Util
  ********************************************)
 type color = RED | BLUE | BLACK | YELLOW
 
-type dagnode = 
+type dagnode =
     { assigned: Variable.variable;
       mutable expression: Expr.expr;
       input_variables: Variable.variable list;
@@ -47,11 +47,11 @@ type dagnode =
 type dag = Dag of (dagnode list)
 
 (* true if node uses v *)
-let node_uses v node = 
+let node_uses v node =
   List.exists (Variable.same v) node.input_variables
 
 (* true if assignment of v clobbers any input of node *)
-let node_clobbers node v = 
+let node_clobbers node v =
   List.exists (Variable.same_location v) node.input_variables
 
 (* true if nodeb depends on nodea *)
@@ -63,27 +63,27 @@ let depends_on nodea nodeb =
 let makedag alist =
   let dag = List.map
       (fun assignment ->
-	let (v, x) = assignment in
-	{ assigned = v;
-	  expression = x;
-	  input_variables = Expr.find_vars x;
-	  successors = [];
-	  predecessors = [];
-	  label = 0;
-	  color = BLACK })
+        let (v, x) = assignment in
+        { assigned = v;
+          expression = x;
+          input_variables = Expr.find_vars x;
+          successors = [];
+          predecessors = [];
+          label = 0;
+          color = BLACK })
       alist
   in begin
     for_list dag (fun i ->
-	for_list dag (fun j ->
-	  if depends_on i j then begin
-	    i.successors <- j :: i.successors;
-	    j.predecessors <- i :: j.predecessors;
-	  end));
+        for_list dag (fun j ->
+          if depends_on i j then begin
+            i.successors <- j :: i.successors;
+            j.predecessors <- i :: j.predecessors;
+          end));
     Dag dag;
   end
 
 let map f (Dag dag) = Dag (List.map f dag)
-let for_all (Dag dag) f = 
+let for_all (Dag dag) f =
   (* type system loophole *)
   let make_unit _ = () in
   make_unit (List.map f dag)
@@ -97,13 +97,13 @@ let rec bfs (Dag dag) node init_label =
   let rec loop = function
       [] -> ()
     | node :: rest ->
-	let neighbors = node.predecessors @ node.successors in
-	let m = min_list (List.map (fun node -> node.label) neighbors) in
-	if (node.label > m + 1) then begin
-	  node.label <- m + 1;
-	  loop (rest @ neighbors);
-	end else
-	  loop rest
+        let neighbors = node.predecessors @ node.successors in
+        let m = min_list (List.map (fun node -> node.label) neighbors) in
+        if (node.label > m + 1) then begin
+          node.label <- m + 1;
+          loop (rest @ neighbors);
+        end else
+          loop rest
   in let neighbors = node.predecessors @ node.successors in
   loop neighbors
 
