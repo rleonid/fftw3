@@ -35,12 +35,12 @@ let make (r, i) = CE (r, i)
 let uminus (CE (a, b)) =  CE (makeUminus a, makeUminus b)
 
 let inverse_int n = CE (makeNum (Number.div Number.one (Number.of_int n)),
-			makeNum Number.zero)
+                        makeNum Number.zero)
 
-let inverse_int_sqrt n = 
+let inverse_int_sqrt n =
   CE (makeNum (Number.div Number.one (Number.sqrt (Number.of_int n))),
       makeNum Number.zero)
-let int_sqrt n = 
+let int_sqrt n =
   CE (makeNum (Number.sqrt (Number.of_int n)),
       makeNum Number.zero)
 
@@ -48,13 +48,13 @@ let nan x = CE (NaN x, makeNum Number.zero)
 
 let half = inverse_int 2
 
-let times3x3 (CE (a, b)) (CE (c, d)) = 
+let times3x3 (CE (a, b)) (CE (c, d)) =
   CE (makePlus [makeTimes (c, makePlus [a; makeUminus (b)]);
-	        makeTimes (b, makePlus [c; makeUminus (d)])],
+                makeTimes (b, makePlus [c; makeUminus (d)])],
       makePlus [makeTimes (a, makePlus [c; d]);
-	        makeUminus(makeTimes (c, makePlus [a; makeUminus (b)]))])
+                makeUminus(makeTimes (c, makePlus [a; makeUminus (b)]))])
 
-let times (CE (a, b)) (CE (c, d)) = 
+let times (CE (a, b)) (CE (c, d)) =
   if not !Magic.threemult then
     CE (makePlus [makeTimes (a, c); makeUminus (makeTimes (b, d))],
         makePlus [makeTimes (a, d); makeTimes (b, c)])
@@ -63,12 +63,12 @@ let times (CE (a, b)) (CE (c, d)) =
   else (* hope a and b are constant expressions *)
     times3x3 (CE (c, d)) (CE (a, b))
 
-let ctimes (CE (a, _)) (CE (c, _)) = 
+let ctimes (CE (a, _)) (CE (c, _)) =
   CE (CTimes (a, c), makeNum Number.zero)
 
-let ctimesj (CE (a, _)) (CE (c, _)) = 
+let ctimesj (CE (a, _)) (CE (c, _)) =
   CE (CTimesJ (a, c), makeNum Number.zero)
-      
+
 (* complex exponential (of root of unity); returns exp(2*pi*i/n * m) *)
 let exp n i =
   let (c, s) = Number.cexp n i
@@ -87,15 +87,15 @@ let tan n m =
 let cot n m =
   let (c, s) = Number.cexp n m
   in CE (makeNum (Number.div c s), makeNum Number.zero)
-    
+
 (* complex sum *)
 let plus a =
   let rec unzip_complex = function
       [] -> ([], [])
     | ((CE (a, b)) :: s) ->
         let (r,i) = unzip_complex s
-	in
-	(a::r), (b::i) in
+        in
+        (a::r), (b::i) in
   let (c, d) = unzip_complex a in
   CE (makePlus c, makePlus d)
 
@@ -105,7 +105,7 @@ let imag (CE (a, b)) = CE (b, makeNum Number.zero)
 let iimag (CE (a, b)) = CE (makeNum Number.zero, b)
 let conj (CE (a, b)) = CE (a, makeUminus b)
 
-    
+
 (* abstraction of sum_{i=0}^{n-1} *)
 let sigma a b f = plus (List.map f (Util.interval a b))
 
@@ -120,7 +120,7 @@ let assign (vr, vi) x = (assign_real vr x, assign_imag vi x)
 
 
 (************************
-   shortcuts 
+   shortcuts
  ************************)
 let (@*) = times
 let (@+) a b = plus [a; b]

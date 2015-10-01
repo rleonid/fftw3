@@ -67,7 +67,7 @@ let generate n =
   and twarray = "W"
   and m = "m" and mb = "mb" and me = "me" and ms = "ms" in
 
-  let sign = !Genutil.sign 
+  let sign = !Genutil.sign
   and name = !Magic.codelet_name in
 
   let (bytwiddle, num_twiddles, twdesc) = Twiddle.twiddle_policy 0 false in
@@ -86,15 +86,15 @@ let generate n =
 
   let locations = unique_v_array_c n n in
 
-  let ioi = 
-    locative_v_array_c n n 
-      (C.varray_subscript rioarray svs srs) 
-      (C.varray_subscript iioarray svs srs) 
+  let ioi =
+    locative_v_array_c n n
+      (C.varray_subscript rioarray svs srs)
+      (C.varray_subscript iioarray svs srs)
       locations "BUG"
-  and ioo = 
-    locative_v_array_c n n 
-      (C.varray_subscript rioarray svs srs) 
-      (C.varray_subscript iioarray svs srs) 
+  and ioo =
+    locative_v_array_c n n
+      (C.varray_subscript rioarray svs srs)
+      (C.varray_subscript iioarray svs srs)
       locations "BUG"
   in
 
@@ -113,52 +113,52 @@ let generate n =
   let body = Block (
     [Decl ("INT", m)],
     [For (list_to_comma
-	    [Expr_assign (vm, vmb);
-	     Expr_assign (CVar twarray, 
-			  CPlus [CVar twarray; 
-				 ctimes (vmb, Integer nt)])],
-	  Binop (" < ", vm, vme),
-	  list_to_comma 
-	    [Expr_assign (vm, CPlus [vm; Integer 1]);
-	     Expr_assign (CVar rioarray, CPlus [CVar rioarray; CVar ms]);
-	     Expr_assign (CVar iioarray, CPlus [CVar iioarray; CVar ms]);
-	     Expr_assign (CVar twarray, CPlus [CVar twarray; Integer nt]);
-	     make_volatile_stride (2*n) (CVar rs);
-	     make_volatile_stride (2*0) (CVar vs)
-	   ],
-	  Asch annot)]) in
+            [Expr_assign (vm, vmb);
+             Expr_assign (CVar twarray,
+                          CPlus [CVar twarray;
+                                 ctimes (vmb, Integer nt)])],
+          Binop (" < ", vm, vme),
+          list_to_comma
+            [Expr_assign (vm, CPlus [vm; Integer 1]);
+             Expr_assign (CVar rioarray, CPlus [CVar rioarray; CVar ms]);
+             Expr_assign (CVar iioarray, CPlus [CVar iioarray; CVar ms]);
+             Expr_assign (CVar twarray, CPlus [CVar twarray; Integer nt]);
+             make_volatile_stride (2*n) (CVar rs);
+             make_volatile_stride (2*0) (CVar vs)
+           ],
+          Asch annot)]) in
 
-  let tree = 
+  let tree =
     Fcn (("static void"), name,
-	 [Decl (C.realtypep, rioarray);
-	  Decl (C.realtypep, iioarray);
-	  Decl (C.constrealtypep, twarray);
-	  Decl (C.stridetype, rs);
-	  Decl (C.stridetype, vs);
-	  Decl ("INT", mb);
-	  Decl ("INT", me);
-	  Decl ("INT", ms)],
+         [Decl (C.realtypep, rioarray);
+          Decl (C.realtypep, iioarray);
+          Decl (C.constrealtypep, twarray);
+          Decl (C.stridetype, rs);
+          Decl (C.stridetype, vs);
+          Decl ("INT", mb);
+          Decl ("INT", me);
+          Decl ("INT", ms)],
          finalize_fcn body)
   in
-  let twinstr = 
-    Printf.sprintf "static const tw_instr twinstr[] = %s;\n\n" 
+  let twinstr =
+    Printf.sprintf "static const tw_instr twinstr[] = %s;\n\n"
       (Twiddle.twinstr_to_c_string (twdesc n))
 
-  and desc = 
+  and desc =
     Printf.sprintf
       "static const ct_desc desc = {%d, \"%s\", twinstr, &GENUS, %s, %s, %s, %s};\n\n"
-      n name (flops_of tree) 
+      n name (flops_of tree)
       (stride_to_solverparm !urs) (stride_to_solverparm !uvs)
-      (stride_to_solverparm !ums) 
+      (stride_to_solverparm !ums)
 
-  and register = 
+  and register =
     match !ditdif with
     | DIT -> "X(kdft_ditsq_register)"
     | DIF -> "X(kdft_difsq_register)"
   in
   let init =
-    "\n" ^ 
-    twinstr ^ 
+    "\n" ^
+    twinstr ^
     desc ^
     (declare_register_fcn name) ^
     (Printf.sprintf "{\n%s(p, %s, &desc);\n}" register name)

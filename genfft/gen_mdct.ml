@@ -106,7 +106,7 @@ let speclist = [
 let unity_window n i = Complex.one
 
 (* MP3 window(k) = sin(pi/(2n) * (k + 1/2)) *)
-let mp3_window n k = 
+let mp3_window n k =
   Complex.imag (Complex.exp (8 * n) (2*k + 1))
 
 (* Vorbis window(k) = sin(pi/2 * (mp3_window(k))^2)
@@ -129,18 +129,18 @@ let load_window_sym w n i = w (if (i < n) then i else (2*n - 1 - i))
 (* Note: only correct for even n! *)
 let load_array_mdct window n rarr iarr locations =
   let twon = 2 * n in
-  let arr = load_array_c twon 
+  let arr = load_array_c twon
       (locative_array_c twon rarr iarr locations "BUG") in
   let arrw = fun i -> Complex.times (window n i) (arr i) in
   array n
     ((Complex.times Complex.half) @@
      (fun i ->
        if (i < n/2) then
-	 Complex.uminus (Complex.plus [arrw (i + n + n/2); 
-				       arrw (n + n/2 - 1 - i)])
+         Complex.uminus (Complex.plus [arrw (i + n + n/2);
+                                       arrw (n + n/2 - 1 - i)])
        else
-	 Complex.plus [arrw (i - n/2); 
-		       Complex.uminus (arrw (n + n/2 - 1 - i))]))
+         Complex.plus [arrw (i - n/2);
+                       Complex.uminus (arrw (n + n/2 - 1 - i))]))
 
 let store_array_mdct window n rarr iarr locations arr =
   store_array_r n (locative_array_c n rarr iarr locations "BUG") arr
@@ -174,8 +174,8 @@ let generate n mode =
   let iarray = "I"
   and oarray = "O"
   and istride = "istride"
-  and ostride = "ostride" 
-  and window = "W" 
+  and ostride = "ostride"
+  and window = "W"
   and name = !Magic.codelet_name in
 
   let vistride = either_stride (!uistride) (C.SVar istride)
@@ -191,10 +191,10 @@ let generate n mode =
   | MDCT_MP3 -> Trig.dctIV, load_array_mdct mp3_window,
       store_array_mdct unity_window
   | MDCT_WINDOW -> Trig.dctIV, load_array_mdct
-	(load_window (window_array (2 * n) window)),
+        (load_window (window_array (2 * n) window)),
       store_array_mdct unity_window
   | MDCT_WINDOW_SYM -> Trig.dctIV, load_array_mdct
-	(load_window_sym (window_array n window)),
+        (load_window_sym (window_array n window)),
       store_array_mdct unity_window
   | IMDCT -> Trig.dctIV, load_array_imdct unity_window,
       store_array_imdct unity_window
@@ -206,43 +206,43 @@ let generate n mode =
       store_array_imdct (load_window_sym (window_array n window))
   | _ -> failwith "must specify transform kind"
   in
-    
+
   let locations = unique_array_c (2*n) in
-  let input = 
+  let input =
     load_input n
       (C.array_subscript iarray vistride)
       (C.array_subscript "BUG" vistride)
       locations
   in
-  let output = (Complex.times (Complex.inverse_int !normalization)) 
+  let output = (Complex.times (Complex.inverse_int !normalization))
     @@ (transform n input) in
   let odag =
     store_output n
       (C.array_subscript oarray vostride)
       (C.array_subscript "BUG" vostride)
-      locations 
+      locations
       output
   in
   let annot = standard_optimizer odag in
 
   let tree =
     Fcn ("void", name,
-	 ([Decl (C.constrealtypep, iarray);
-	   Decl (C.realtypep, oarray)]
-	  @ (if stride_fixed !uistride then [] 
+         ([Decl (C.constrealtypep, iarray);
+           Decl (C.realtypep, oarray)]
+          @ (if stride_fixed !uistride then []
                else [Decl (C.stridetype, istride)])
-	  @ (if stride_fixed !uostride then [] 
-	       else [Decl (C.stridetype, ostride)])
-	  @ (choose_simd []
-	       (if stride_fixed !uivstride then [] else 
-	       [Decl ("int", sivs)]))
-	  @ (choose_simd []
-	       (if stride_fixed !uovstride then [] else 
-	       [Decl ("int", sovs)]))
-	  @ (if (not (window_param mode)) then [] 
-	       else [Decl (C.constrealtypep, window)])
-	 ),
-	 finalize_fcn (Asch annot))
+          @ (if stride_fixed !uostride then []
+               else [Decl (C.stridetype, ostride)])
+          @ (choose_simd []
+               (if stride_fixed !uivstride then [] else
+               [Decl ("int", sivs)]))
+          @ (choose_simd []
+               (if stride_fixed !uovstride then [] else
+               [Decl ("int", sovs)]))
+          @ (if (not (window_param mode)) then []
+               else [Decl (C.constrealtypep, window)])
+         ),
+         finalize_fcn (Asch annot))
 
   in
   (unparse tree) ^ "\n"

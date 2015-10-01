@@ -79,16 +79,16 @@ let speclist = [
   "-rader-min", set_int rader_min,
   "<n> : Use Rader's algorithm for prime sizes >= <n>";
 
-  "-threemult", set_bool threemult, 
+  "-threemult", set_bool threemult,
   " Use 3-multiply complex multiplications";
 
   "-karatsuba-min", set_int karatsuba_min, undocumented;
   "-karatsuba-variant", set_int karatsuba_variant, undocumented;
   "-circular-min", set_int circular_min, undocumented;
 
-  "-compact", set_bool compact, 
+  "-compact", set_bool compact,
   " Mangle variable names to reduce size of source code";
-  "-no-compact", unset_bool compact, 
+  "-no-compact", unset_bool compact,
   " Disable -compact";
 
   "-dump-dag", set_string dag_dump_file, undocumented;
@@ -156,6 +156,6 @@ let speclist = [
 
   "-generate-bytw", set_bool generate_bytw, undocumented;
   "-no-generate-bytw", unset_bool generate_bytw, undocumented;
-] 
-   
+]
+
 

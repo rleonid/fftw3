@@ -35,7 +35,7 @@ open Dag
  *               Dag scheduler
  *************************************************)
 let to_assignment node = (Expr.Assign (node.assigned, node.expression))
-let makedag l = Dag.makedag 
+let makedag l = Dag.makedag
     (List.map (function Expr.Assign (v, x) -> (v, x)) l)
 
 let return x = x
@@ -43,28 +43,28 @@ let has_color c n = (n.color = c)
 let set_color c n = (n.color <- c)
 let has_either_color c1 c2 n = (n.color = c1 || n.color = c2)
 
-let infinity = 100000 
+let infinity = 100000
 
 let cc dag inputs =
   begin
-    Dag.for_all dag (fun node -> 
+    Dag.for_all dag (fun node ->
       node.label <- infinity);
-    
-    (match inputs with 
+
+    (match inputs with
       a :: _ -> bfs dag a 0
     | _ -> failwith "connected");
 
     return
       ((List.map to_assignment (List.filter (fun n -> n.label < infinity)
-				  (Dag.to_list dag))),
-       (List.map to_assignment (List.filter (fun n -> n.label == infinity) 
-				  (Dag.to_list dag))))
+                                  (Dag.to_list dag))),
+       (List.map to_assignment (List.filter (fun n -> n.label == infinity)
+                                  (Dag.to_list dag))))
   end
 
 let rec connected_components alist =
   let dag = makedag alist in
-  let inputs = 
-    List.filter (fun node -> Util.null node.predecessors) 
+  let inputs =
+    List.filter (fun node -> Util.null node.predecessors)
       (Dag.to_list dag) in
   match cc dag inputs with
     (a, []) -> [a]
@@ -72,7 +72,7 @@ let rec connected_components alist =
 
 let single_load node =
   match (node.input_variables, node.predecessors) with
-    ([x], []) -> 
+    ([x], []) ->
       Variable.is_constant x ||
       (!Magic.locations_are_special && Variable.is_locative x)
   | _ -> false
@@ -85,17 +85,17 @@ let loads_locative node =
 let partition alist =
   let dag = makedag alist in
   let dag' = Dag.to_list dag in
-  let inputs = 
+  let inputs =
     List.filter (fun node -> Util.null node.predecessors) dag'
-  and outputs = 
+  and outputs =
     List.filter (fun node -> Util.null node.successors) dag'
   and special_inputs =  List.filter single_load dag' in
   begin
-    
+
     let c = match !Magic.schedule_type with
-	| 1 -> RED; (* all nodes in the input partition *)
-	| -1 -> BLUE; (* all nodes in the output partition *)
-	| _ -> BLACK; (* node color determined by bisection algorithm *)
+        | 1 -> RED; (* all nodes in the input partition *)
+        | -1 -> BLUE; (* all nodes in the output partition *)
+        | _ -> BLACK; (* node color determined by bisection algorithm *)
     in Dag.for_all dag (fun node -> node.color <- c);
 
     Util.for_list inputs (set_color RED);
@@ -120,46 +120,46 @@ let partition alist =
 
     Util.for_list outputs (set_color BLUE);
 
-    let rec loopi donep = 
+    let rec loopi donep =
       match (List.filter
-	       (fun node -> (has_color BLACK node) &&
-		 List.for_all (has_either_color RED YELLOW) node.predecessors)
-	       dag') with
-	[] -> if (donep) then () else loopo true
-      |	i -> 
-	  begin
-	    Util.for_list i (fun node -> 
-	      begin
-      		set_color RED node;
-		Util.for_list node.predecessors (set_color RED);
-	      end);
-	    loopo false; 
-	  end
+               (fun node -> (has_color BLACK node) &&
+                 List.for_all (has_either_color RED YELLOW) node.predecessors)
+               dag') with
+        [] -> if (donep) then () else loopo true
+      | i ->
+          begin
+            Util.for_list i (fun node ->
+              begin
+                set_color RED node;
+                Util.for_list node.predecessors (set_color RED);
+              end);
+            loopo false;
+          end
 
     and loopo donep =
       match (List.filter
-	       (fun node -> (has_either_color BLACK YELLOW node) &&
-		 List.for_all (has_color BLUE) node.successors)
-	       dag') with
-	[] -> if (donep) then () else loopi true
-      |	o ->
-	  begin
-	    Util.for_list o (set_color BLUE);
-	    loopi false; 
-	  end
+               (fun node -> (has_either_color BLACK YELLOW node) &&
+                 List.for_all (has_color BLUE) node.successors)
+               dag') with
+        [] -> if (donep) then () else loopi true
+      | o ->
+          begin
+            Util.for_list o (set_color BLUE);
+            loopi false;
+          end
 
     in loopi false;
 
     (* fix the partition if it is incorrect *)
-    if not (List.exists (has_color RED) dag') then 
-	Util.for_list inputs (set_color RED);
-    
+    if not (List.exists (has_color RED) dag') then
+        Util.for_list inputs (set_color RED);
+
     return
       ((List.map to_assignment (List.filter (has_color RED) dag')),
        (List.map to_assignment (List.filter (has_color BLUE) dag')))
   end
 
-type schedule = 
+type schedule =
     Done
   | Instr of Expr.assignment
   | Seq of (schedule * schedule)
@@ -177,10 +177,10 @@ let schedule =
     | [] -> Done
     | [a] -> Instr a
     | alist -> match connected_components alist with
-	| ([a]) -> schedule_connected a
-	| l -> Par (List.map schedule_alist l)
+        | ([a]) -> schedule_connected a
+        | l -> Par (List.map schedule_alist l)
 
-  and schedule_connected alist = 
+  and schedule_connected alist =
     match partition alist with
     | (a, b) -> Seq (schedule_alist a, schedule_alist b)
 
@@ -205,32 +205,32 @@ let partition_precomputations alist =
   let dag' = Dag.to_list dag in
   let loads =  List.filter loads_locative dag' in
     begin
-      
+
       Dag.for_all dag (set_color BLUE);
       Util.for_list loads (set_color RED);
 
-      let rec loop () = 
-	match (List.filter
-		 (fun node -> (has_color RED node) &&
-		    List.exists (has_color BLUE) node.successors)
-		 dag') with
-	    [] -> ()
-	  |	i -> 
-		  begin
-		    Util.for_list i 
-		      (fun node -> 
-			 Util.for_list node.successors (set_color RED));
-		    loop ()
-		  end
+      let rec loop () =
+        match (List.filter
+                 (fun node -> (has_color RED node) &&
+                    List.exists (has_color BLUE) node.successors)
+                 dag') with
+            [] -> ()
+          |     i ->
+                  begin
+                    Util.for_list i
+                      (fun node ->
+                         Util.for_list node.successors (set_color RED));
+                    loop ()
+                  end
 
       in loop ();
 
-	return
-	  ((List.map to_assignment (List.filter (has_color BLUE) dag')),
-	   (List.map to_assignment (List.filter (has_color RED) dag')))
+        return
+          ((List.map to_assignment (List.filter (has_color BLUE) dag')),
+           (List.map to_assignment (List.filter (has_color RED) dag')))
     end
 
 let isolate_precomputations_and_schedule alist =
   let (a, b) = partition_precomputations alist in
     Seq (schedule a, schedule b)
-  
+

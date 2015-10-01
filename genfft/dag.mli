@@ -23,7 +23,7 @@ open Util
 
 type color = | RED | BLUE | BLACK | YELLOW
 
-type dagnode = 
+type dagnode =
     { assigned: Variable.variable;
       mutable expression: Expr.expr;
       input_variables: Variable.variable list;

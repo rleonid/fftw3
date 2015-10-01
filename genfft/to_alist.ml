@@ -29,7 +29,7 @@
  * state monad to propagate some of the state backwards, so that
  * we know whether a given node will be used again in the future.
  * This modification is trivial in a lazy language, but it is
- * messy in a strict language like ML.  
+ * messy in a strict language like ML.
  *
  * In this implementation, we just do the obvious thing, i.e., visit
  * the dag twice, the first to count the node usages, and the second to
@@ -45,7 +45,7 @@ let node_insert x =  Assoctable.insert Expr.hash x
 let node_lookup x =  Assoctable.lookup Expr.hash (==) x
 let empty = Assoctable.empty
 
-let fetchAl = 
+let fetchAl =
   fetchState >>= (fun (al, _, _) -> returnM al)
 
 let storeAl al =
@@ -72,22 +72,22 @@ let insertVisitedM' key value =
 let counting f x =
   fetchVisited >>= (fun v ->
     match node_lookup x v with
-      Some count -> 
-	let incr_cnt = 
-	  fetchVisited >>= (fun v' ->
-	    storeVisited (node_insert x (count + 1) v'))
-	in
-	begin
-	  match x with
-	    (* Uminus is always inlined.  Visit child *)
-	    Uminus y -> f y >> incr_cnt
-	  | _ -> incr_cnt
-	end
+      Some count ->
+        let incr_cnt =
+          fetchVisited >>= (fun v' ->
+            storeVisited (node_insert x (count + 1) v'))
+        in
+        begin
+          match x with
+            (* Uminus is always inlined.  Visit child *)
+            Uminus y -> f y >> incr_cnt
+          | _ -> incr_cnt
+        end
     | None ->
         f x >> fetchVisited >>= (fun v' ->
             storeVisited (node_insert x 1 v')))
 
-let with_varM v x = 
+let with_varM v x =
   fetchAl >>= (fun al -> storeAl ((v, x) :: al)) >> returnM (Load v)
 
 let inlineM = returnM
@@ -100,20 +100,20 @@ let with_tempM x = match x with
 let with_temp_maybeM node x =
   fetchVisited >>= (fun v ->
     match node_lookup node v with
-      Some count -> 
+      Some count ->
         if (count = 1 && !Magic.inline_single) then
           inlineM x
         else
           with_tempM x
     | None ->
         failwith "with_temp_maybeM")
-type fma = 
+type fma =
     NO_FMA
   | FMA of expr * expr * expr   (* FMA (a, b, c) => a + b * c *)
   | FMS of expr * expr * expr   (* FMS (a, b, c) => -a + b * c *)
   | FNMS of expr * expr * expr  (* FNMS (a, b, c) => a - b * c *)
 
-let good_for_fma (a, b) = 
+let good_for_fma (a, b) =
   let good = function
     | NaN I -> true
     | NaN CONJ -> true
@@ -123,7 +123,7 @@ let good_for_fma (a, b) =
     | _ -> true
   in good a && good b
 
-let build_fma l = 
+let build_fma l =
   if (not !Magic.enable_fma) then NO_FMA
   else match l with
   | [a; Uminus (Times (b, c))] when good_for_fma (b, c) -> FNMS (a, b, c)
@@ -148,12 +148,12 @@ let rec visitM x =
     | NaN a -> returnM ()
     | Store (v, x) -> visitM x
     | Plus a -> (match children_fma a with
-	None -> mapM visitM a >> returnM ()
-      | Some (a, b, c) -> 
+        None -> mapM visitM a >> returnM ()
+      | Some (a, b, c) ->
           (* visit fma's arguments twice to make sure they are not inlined *)
-	  visitM a >> visitM a >>
-	  visitM b >> visitM b >>
-	  visitM c >> visitM c)
+          visitM a >> visitM a >>
+          visitM b >> visitM b >>
+          visitM c >> visitM c)
     | Times (a, b) -> visitM a >> visitM b
     | CTimes (a, b) -> visitM a >> visitM b
     | CTimesJ (a, b) -> visitM a >> visitM b
@@ -166,50 +166,50 @@ let visit_rootsM = mapM visitM
 let rec expr_of_nodeM x =
   memoizing lookupVisitedM' insertVisitedM'
     (function x -> match x with
-    | Load v -> 
-	if (Variable.is_temporary v) then
-	  inlineM (Load v)
-	else if (Variable.is_locative v && !Magic.inline_loads) then
+    | Load v ->
+        if (Variable.is_temporary v) then
+          inlineM (Load v)
+        else if (Variable.is_locative v && !Magic.inline_loads) then
           inlineM (Load v)
         else if (Variable.is_constant v && !Magic.inline_loads_constants) then
           inlineM (Load v)
-	else
+        else
           with_tempM (Load v)
     | Num a ->
         if !Magic.inline_constants then
           inlineM (Num a)
-	else
+        else
           with_temp_maybeM x (Num a)
     | NaN a -> inlineM (NaN a)
-    | Store (v, x) -> 
-        expr_of_nodeM x >>= 
-	(if !Magic.trivial_stores then with_tempM else inlineM) >>=
-        with_varM v 
+    | Store (v, x) ->
+        expr_of_nodeM x >>=
+        (if !Magic.trivial_stores then with_tempM else inlineM) >>=
+        with_varM v
 
-    | Plus a -> 
-	begin
-	  match build_fma a with
-	    FMA (a, b, c) ->	  
-	      expr_of_nodeM a >>= fun a' ->
-		expr_of_nodeM b >>= fun b' ->
-		  expr_of_nodeM c >>= fun c' ->
-		    with_temp_maybeM x (Plus [a'; Times (b', c')])
-	  | FMS (a, b, c) ->	  
-	      expr_of_nodeM a >>= fun a' ->
-		expr_of_nodeM b >>= fun b' ->
-		  expr_of_nodeM c >>= fun c' ->
-		    with_temp_maybeM x 
-		      (Plus [Times (b', c'); Uminus a'])
-	  | FNMS (a, b, c) ->	  
-	      expr_of_nodeM a >>= fun a' ->
-		expr_of_nodeM b >>= fun b' ->
-		  expr_of_nodeM c >>= fun c' ->
-		    with_temp_maybeM x 
-		      (Plus [a'; Uminus (Times (b', c'))])
-	  | NO_FMA ->
+    | Plus a ->
+        begin
+          match build_fma a with
+            FMA (a, b, c) ->
+              expr_of_nodeM a >>= fun a' ->
+                expr_of_nodeM b >>= fun b' ->
+                  expr_of_nodeM c >>= fun c' ->
+                    with_temp_maybeM x (Plus [a'; Times (b', c')])
+          | FMS (a, b, c) ->
+              expr_of_nodeM a >>= fun a' ->
+                expr_of_nodeM b >>= fun b' ->
+                  expr_of_nodeM c >>= fun c' ->
+                    with_temp_maybeM x
+                      (Plus [Times (b', c'); Uminus a'])
+          | FNMS (a, b, c) ->
+              expr_of_nodeM a >>= fun a' ->
+                expr_of_nodeM b >>= fun b' ->
+                  expr_of_nodeM c >>= fun c' ->
+                    with_temp_maybeM x
+                      (Plus [a'; Uminus (Times (b', c'))])
+          | NO_FMA ->
               mapM expr_of_nodeM a >>= fun a' ->
-		with_temp_maybeM x (Plus a')
-	end
+                with_temp_maybeM x (Plus a')
+        end
     | CTimes (Load _ as a, b) when !Magic.generate_bytw ->
         expr_of_nodeM b >>= fun b' ->
           with_tempM (CTimes (a, b'))
@@ -227,13 +227,13 @@ let rec expr_of_nodeM x =
     | Times (a, b) ->
         expr_of_nodeM a >>= fun a' ->
           expr_of_nodeM b >>= fun b' ->
-	    begin
-	      match a' with
-		Num a'' when !Magic.strength_reduce_mul && Number.is_two a'' ->
-		  (inlineM b' >>= fun b'' ->
-		    with_temp_maybeM x (Plus [b''; b'']))
-	      | _ -> with_temp_maybeM x (Times (a', b'))
-	    end
+            begin
+              match a' with
+                Num a'' when !Magic.strength_reduce_mul && Number.is_two a'' ->
+                  (inlineM b' >>= fun b'' ->
+                    with_temp_maybeM x (Plus [b''; b'']))
+              | _ -> with_temp_maybeM x (Times (a', b'))
+            end
     | Uminus a ->
         expr_of_nodeM a >>= fun a' ->
           inlineM (Uminus a'))
@@ -264,9 +264,9 @@ let dump print alist =
     (* all input nodes have the same rank *)
     print "{ rank = same;\n";
     List.iter (fun (Expr.Assign (v, x)) ->
-      List.iter (fun y -> 
-	if (Variable.is_locative y) then print("\t" ^ (vs y) ^ ";\n"))
-	(Expr.find_vars x))
+      List.iter (fun y ->
+        if (Variable.is_locative y) then print("\t" ^ (vs y) ^ ";\n"))
+        (Expr.find_vars x))
       alist;
     print "}\n";
 
@@ -276,11 +276,11 @@ let dump print alist =
       if (Variable.is_locative v) then print("\t" ^ (vs v) ^ ";\n"))
       alist;
     print "}\n";
-    
+
     (* edges *)
     List.iter (fun (Expr.Assign (v, x)) ->
       List.iter (fun y -> print("\t" ^ (vs y) ^ " -> " ^ (vs v) ^ ";\n"))
-	(Expr.find_vars x))
+        (Expr.find_vars x))
       alist;
 
     print "}\n";

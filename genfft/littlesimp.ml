@@ -19,12 +19,12 @@
  *
  *)
 
-(* 
+(*
  * The LittleSimplifier module implements a subset of the simplifications
  * of the AlgSimp module.  These simplifications can be executed
  * quickly here, while they would take a long time using the heavy
- * machinery of AlgSimp.  
- * 
+ * machinery of AlgSimp.
+ *
  * For example, 0 * x is simplified to 0 tout court by the LittleSimplifier.
  * On the other hand, AlgSimp would first simplify x, generating lots
  * of common subexpressions, storing them in a table etc, just to
@@ -38,7 +38,7 @@ let rec makeNum = function
   | n -> Num n
 
 and makeUminus = function
-  | Uminus a -> a 
+  | Uminus a -> a
   | Num a -> makeNum (Number.negate a)
   | a -> Uminus a
 
@@ -52,18 +52,18 @@ and makeTimes = function
   | (a, (Num b as b')) -> makeTimes (b', a)
   | (a, b) -> Times (a, b)
 
-and makePlus l = 
+and makePlus l =
   let rec reduceSum x = match x with
     [] -> []
   | [Num a] -> if Number.is_zero a then [] else x
-  | (Num a) :: (Num b) :: c -> 
+  | (Num a) :: (Num b) :: c ->
       reduceSum ((makeNum (Number.add a b)) :: c)
   | ((Num _) as a') :: b :: c -> b :: reduceSum (a' :: c)
   | a :: s -> a :: reduceSum s
 
   in match reduceSum l with
     [] -> makeNum (Number.zero)
-  | [a] -> a 
+  | [a] -> a
   | [a; b] when a == b -> makeTimes (Num Number.two, a)
   | [Times (Num a, b); Times (Num c, d)] when b == d ->
       makeTimes (makePlus [Num a; Num c], b)

@@ -21,7 +21,7 @@
 
 (* various utility functions *)
 open List
-open Unix 
+open Unix
 
 (*****************************************
  * Integer operations
@@ -29,10 +29,10 @@ open Unix
 (* fint the inverse of n modulo m *)
 let invmod n m =
     let rec loop i =
-	if ((i * n) mod m == 1) then i
-	else loop (i + 1)
+        if ((i * n) mod m == 1) then i
+        else loop (i + 1)
     in
-	loop 1
+        loop 1
 
 (* Yooklid's algorithm *)
 let rec gcd n m =
@@ -41,8 +41,8 @@ let rec gcd n m =
     else
       let r = m mod n
       in
-	  if (r == 0) then n
-	  else gcd r n
+          if (r == 0) then n
+          else gcd r n
 
 (* reduce the fraction m/n to lowest terms, modulo factors of n/n *)
 let lowest_terms n m =
@@ -50,9 +50,9 @@ let lowest_terms n m =
       (1,0)
     else
       let nn = (abs n) in let mm = m * (n / nn)
-      in let mpos = 
-	  if (mm > 0) then (mm mod nn)
-	  else (mm + (1 + (abs mm) / nn) * nn) mod nn
+      in let mpos =
+          if (mm > 0) then (mm mod nn)
+          else (mm + (1 + (abs mm) / nn) * nn) mod nn
       and d = gcd nn (abs mm)
       in (nn / d, mpos / d)
 
@@ -63,12 +63,12 @@ exception No_Generator
 
 let find_generator p =
     let rec period x prod =
- 	if (prod == 1) then 1
-	else 1 + (period x (prod * x mod p))
+        if (prod == 1) then 1
+        else 1 + (period x (prod * x mod p))
     in let rec findgen x =
-	if (x == 0) then raise No_Generator
-	else if ((period x x) == (p - 1)) then x
-	else findgen ((x + 1) mod p)
+        if (x == 0) then raise No_Generator
+        else if ((period x x) == (p - 1)) then x
+        else findgen ((x + 1) mod p)
     in findgen 1
 
 (* raise x to a power n modulo p (requires n > 0) (in principle,
@@ -84,7 +84,7 @@ let rec pow_mod x n p =
     else x * (pow_mod x (n - 1) p) mod p
 
 (******************************************
- * auxiliary functions 
+ * auxiliary functions
  ******************************************)
 let rec forall id combiner a b f =
     if (a >= b) then id
@@ -93,11 +93,11 @@ let rec forall id combiner a b f =
 let sum_list l = fold_right (+) l 0
 let max_list l = fold_right (max) l (-999999)
 let min_list l = fold_right (min) l 999999
-let count pred = fold_left 
+let count pred = fold_left
     (fun a elem -> if (pred elem) then 1 + a else a) 0
 let remove elem = List.filter (fun e -> (e != elem))
 let cons a b = a :: b
-let null = function 
+let null = function
     [] -> true
   | _ -> false
 let for_list l f = List.iter f l
@@ -114,17 +114,17 @@ let rec minimize f = function
     [] -> None
   | elem :: rest ->
       match minimize f rest with
-	None -> Some elem
-      |	Some x -> if (f x) >= (f elem) then Some elem else Some x
+        None -> Some elem
+      | Some x -> if (f x) >= (f elem) then Some elem else Some x
 
 
 let rec find_elem condition = function
     [] -> None
   | elem :: rest ->
       if condition elem then
-	Some elem
+        Some elem
       else
-	find_elem condition rest
+        find_elem condition rest
 
 
 (* find x, x >= a, such that (p x) is true *)
@@ -134,10 +134,10 @@ let rec suchthat a pred =
 (* print an information message *)
 let info string =
   if !Magic.verbose then begin
-    let now = Unix.times () 
+    let now = Unix.times ()
     and pid = Unix.getpid () in
     prerr_string ((string_of_int pid) ^ ": " ^
-		  "at t = " ^  (string_of_float now.tms_utime) ^ " : ");
+                  "at t = " ^  (string_of_float now.tms_utime) ^ " : ");
     prerr_string (string ^ "\n");
     flush Pervasives.stderr;
   end

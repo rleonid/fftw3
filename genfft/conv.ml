@@ -25,7 +25,7 @@ open Util
 let polyphase m a ph i = a (m * i + ph)
 
 let rec divmod n i =
-  if (i < 0) then 
+  if (i < 0) then
     let (a, b) = divmod n (i + n)
     in (a - 1, b)
   else (i / n, i mod n)
@@ -49,9 +49,9 @@ let rec conv na a nb b =
       and oe = conv (na / 2) (p a 1) (nb - nb / 2) (p b 0)
       and oo = conv (na / 2) (p a 1) (nb / 2) (p b 1) in
       unpolyphase 2 (function
-	  0 -> fun i -> (ee i) @+ (oo (i - 1))
-	| 1 -> fun i -> (eo i) @+ (oe i) 
-	| _ -> failwith "recur")
+          0 -> fun i -> (ee i) @+ (oo (i - 1))
+        | 1 -> fun i -> (eo i) @+ (oe i)
+        | _ -> failwith "recur")
 
 
   (* Karatsuba variant 1: (a+bx)(c+dx) = (ac+bdxx)+((a+b)(c+d)-ac-bd)x *)
@@ -65,17 +65,17 @@ let rec conv na a nb b =
       and be = infinite nbe be and bo = infinite nbo bo in
       let aeo = lift2 (@+) ae ao and naeo = nae
       and beo = lift2 (@+) be bo and nbeo = nbe in
-      let ee = conv nae ae nbe be 
+      let ee = conv nae ae nbe be
       and oo = conv nao ao nbo bo
       and eoeo = conv naeo aeo nbeo beo in
 
       let q = function
-	  0 -> fun i -> (ee i)  @+ (oo (i - 1))
-	| 1 -> fun i -> (eoeo i) @- ((ee i) @+ (oo i))
-	| _ -> failwith "karatsuba1" in
+          0 -> fun i -> (ee i)  @+ (oo (i - 1))
+        | 1 -> fun i -> (eoeo i) @- ((ee i) @+ (oo i))
+        | _ -> failwith "karatsuba1" in
       unpolyphase 2 q
 
-  (* Karatsuba variant 2: 
+  (* Karatsuba variant 2:
      (a+bx)(c+dx) = ((a+b)c-b(c-dxx))+x((a+b)c-a(c-d)) *)
   and karatsuba2 na a nb b =
       let p = polyphase 2 in
@@ -91,9 +91,9 @@ let rec conv na a nb b =
       and c3 = conv nae ae nbe (lift2 (@-) be bo) in
 
       let q = function
-	  0 -> lift2 (@-) c1 c2
-	| 1 -> lift2 (@-) c1 c3
-	| _ -> failwith "karatsuba2" in
+          0 -> lift2 (@-) c1 c2
+        | 1 -> lift2 (@-) c1 c3
+        | _ -> failwith "karatsuba2" in
       unpolyphase 2 q
 
   and karatsuba na a nb b =
@@ -102,9 +102,9 @@ let rec conv na a nb b =
       recur na a nb b
     else
       match !Magic.karatsuba_variant with
-	1 -> karatsuba1 na a nb b
-      |	2 -> karatsuba2 na a nb b
-      |	_ -> failwith "unknown karatsuba variant"
+        1 -> karatsuba1 na a nb b
+      | 2 -> karatsuba2 na a nb b
+      | _ -> failwith "unknown karatsuba variant"
 
   and via_circular na a nb b =
     let m = na + nb - 1 in
@@ -118,10 +118,10 @@ let rec conv na a nb b =
   let a = infinite na a and b = infinite nb b in
   let res = array (na + nb - 1) (via_circular na a nb b) in
   infinite (na + nb - 1) res
-    
+
 and circular n a b =
   let via_dft n a b =
-    let fa = Fft.dft (-1) n a 
+    let fa = Fft.dft (-1) n a
     and fb = Fft.dft (-1) n b
     and scale = inverse_int n in
     let fab i = ((fa i) @* (fb i)) @* scale in

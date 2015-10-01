@@ -25,45 +25,45 @@ open Util
 let choose_simd a b = if !Simdmagic.simd_mode then b else a
 
 let unique_array n = array n (fun _ -> Unique.make ())
-let unique_array_c n = 
-  array n (fun _ -> 
+let unique_array_c n =
+  array n (fun _ ->
     (Unique.make (), Unique.make ()))
 
-let unique_v_array_c veclen n = 
+let unique_v_array_c veclen n =
   array veclen (fun _ ->
     unique_array_c n)
 
-let locative_array_c n rarr iarr loc vs = 
-  array n (fun i -> 
+let locative_array_c n rarr iarr loc vs =
+  array n (fun i ->
     let klass = Unique.make () in
     let (rloc, iloc) = loc i in
     (Variable.make_locative rloc klass rarr i vs,
      Variable.make_locative iloc klass iarr i vs))
 
-let locative_v_array_c veclen n rarr iarr loc vs = 
+let locative_v_array_c veclen n rarr iarr loc vs =
   array veclen (fun v ->
-    array n (fun i -> 
+    array n (fun i ->
       let klass = Unique.make () in
       let (rloc, iloc) = loc v i in
       (Variable.make_locative rloc klass (rarr v) i vs,
        Variable.make_locative iloc klass (iarr v) i vs)))
 
-let temporary_array n = 
+let temporary_array n =
   array n (fun i -> Variable.make_temporary ())
 
-let temporary_array_c n = 
+let temporary_array_c n =
   let tmpr = temporary_array n
   and tmpi = temporary_array n
-  in 
+  in
   array n (fun i -> (tmpr i, tmpi i))
 
 let temporary_v_array_c veclen n =
   array veclen (fun v -> temporary_array_c n)
 
-let temporary_array_c n = 
+let temporary_array_c n =
   let tmpr = temporary_array n
   and tmpi = temporary_array n
-  in 
+  in
   array n (fun i -> (tmpr i, tmpi i))
 
 let load_c (vr, vi) = Complex.make (Expr.Load vr, Expr.Load vi)
@@ -71,21 +71,21 @@ let load_r (vr, vi) = Complex.make (Expr.Load vr, Expr.Num (Number.zero))
 
 let twiddle_array nt w =
   array (nt/2) (fun i ->
-    let stride = choose_simd (C.SInteger 1) (C.SConst "TWVL") 
+    let stride = choose_simd (C.SInteger 1) (C.SConst "TWVL")
     and klass = Unique.make () in
     let (refr, refi) = (C.array_subscript w stride (2 * i),
-			C.array_subscript w stride (2 * i + 1))
+                        C.array_subscript w stride (2 * i + 1))
     in
     let (kr, ki) = (Variable.make_constant klass refr,
-		    Variable.make_constant klass refi)  
+                    Variable.make_constant klass refi)
     in
     load_c (kr, ki))
 
 
 let load_array_c n var = array n (fun i -> load_c (var i))
 let load_array_r n var = array n (fun i -> load_r (var i))
-let load_array_hc n var = 
-  array n (fun i -> 
+let load_array_hc n var =
+  array n (fun i ->
     if (i < n - i) then
       load_c (var i)
     else if (i > n - i) then
@@ -104,22 +104,22 @@ let assign_array_c n dst src =
   List.flatten
     (rmap (iota n)
        (fun i ->
-	 let (ar, ai) = Complex.assign (dst i) (src i)
-	 in [ar; ai]))
+         let (ar, ai) = Complex.assign (dst i) (src i)
+         in [ar; ai]))
 let assign_v_array_c veclen n dst src =
   List.flatten
     (rmap (iota veclen)
        (fun v ->
-	 assign_array_c n (dst v) (src v)))
+         assign_array_c n (dst v) (src v)))
 
 let vassign_v_array_c veclen n dst src =
   List.flatten
     (rmap (iota n) (fun i ->
       List.flatten
-	(rmap (iota veclen)
-	   (fun v ->
-	     let (ar, ai) = Complex.assign (dst v i) (src v i)
-	     in [ar; ai]))))
+        (rmap (iota veclen)
+           (fun v ->
+             let (ar, ai) = Complex.assign (dst v i) (src v i)
+             in [ar; ai]))))
 
 let store_array_r n dst src =
   rmap (iota n)
@@ -133,20 +133,20 @@ let store_array_c n dst src =
 let store_array_hc n dst src =
   List.flatten
     (rmap (iota n)
-       (fun i -> 
-	 if (i < n - i) then
-	   store_c (dst i) (src i)
-	 else if (i > n - i) then
-	   []
-	 else 
-	   [store_r (dst i) (Complex.real (src i))]))
-	
+       (fun i ->
+         if (i < n - i) then
+           store_c (dst i) (src i)
+         else if (i > n - i) then
+           []
+         else
+           [store_r (dst i) (Complex.real (src i))]))
+
 
 let store_v_array_c veclen n dst src =
   List.flatten
     (rmap (iota veclen)
        (fun v ->
-	 store_array_c n (dst v) (src v)))
+         store_array_c n (dst v) (src v)))
 
 
 let elementwise f n a = array n (fun i -> f (a i))
@@ -154,7 +154,7 @@ let conj_array_c = elementwise Complex.conj
 let real_array_c = elementwise Complex.real
 let imag_array_c = elementwise Complex.imag
 
-let elementwise_v f veclen n a = 
+let elementwise_v f veclen n a =
   array veclen (fun v ->
     array n (fun i -> f (a v i)))
 let conj_v_array_c = elementwise_v Complex.conj
@@ -202,9 +202,9 @@ let standard_scheduler dag =
   let _ = dump_alist alist in
   let _ = dump_dag alist in
     if !Magic.precompute_twiddles then
-      Schedule.isolate_precomputations_and_schedule alist 
+      Schedule.isolate_precomputations_and_schedule alist
     else
-      Schedule.schedule alist 
+      Schedule.schedule alist
 
 let standard_optimizer dag =
   let sched = standard_scheduler dag in
@@ -218,7 +218,7 @@ let sign = ref (-1)
 let speclist = [
   "-n", Arg.Int(fun i -> size := Some i), " generate a codelet of size <n>";
   "-sign",
-  Arg.Int(fun i -> 
+  Arg.Int(fun i ->
     if (i > 0) then
       sign := 1
     else
@@ -236,12 +236,12 @@ let expand_name name = if name = "" then "noname" else name
 let declare_register_fcn name =
   if name = "" then
     "void NAME(planner *p)\n"
-  else 
+  else
     "void " ^ (choose_simd "X" "XSIMD") ^
       "(codelet_" ^ name ^ ")(planner *p)\n"
 
-let stringify name = 
-  if name = "" then "STRINGIZE(NAME)" else 
+let stringify name =
+  if name = "" then "STRINGIZE(NAME)" else
     choose_simd ("\"" ^ name ^ "\"")
       ("XSIMD_STRING(\"" ^ name ^ "\")")
 
@@ -277,7 +277,7 @@ let stride_fixed = function
 let arg_to_stride s =
   try
     Fixed_int (int_of_string s)
-  with Failure "int_of_string" -> 
+  with Failure "int_of_string" ->
     Fixed_string s
 
 let stride_to_solverparm = function
@@ -297,7 +297,7 @@ let cmdline () =
 let unparse tree =
   "/* Generated by: " ^ (cmdline ()) ^ "*/\n\n" ^
   (C.print_cost tree) ^
-  (if String.length !Magic.inklude > 0 
+  (if String.length !Magic.inklude > 0
   then
     (Printf.sprintf "#include \"%s\"\n\n" !Magic.inklude)
   else "") ^
@@ -306,23 +306,23 @@ let unparse tree =
   else
     C.unparse_function tree)
 
-let finalize_fcn ast = 
+let finalize_fcn ast =
   let mergedecls = function
       C.Block (d1, [C.Block (d2, s)]) -> C.Block (d1 @ d2, s)
     | x -> x
   and extract_constants =
-    if !Simdmagic.simd_mode then 
-      Simd.extract_constants 
+    if !Simdmagic.simd_mode then
+      Simd.extract_constants
     else
       C.extract_constants
-	
+
   in mergedecls (C.Block (extract_constants ast, [ast; C.Simd_leavefun]))
 
 let twinstr_to_string vl x =
-  if !Simdmagic.simd_mode then 
+  if !Simdmagic.simd_mode then
     Twiddle.twinstr_to_simd_string vl x
   else
     Twiddle.twinstr_to_c_string x
 
-let make_volatile_stride n x = 
+let make_volatile_stride n x =
   C.CCall ("MAKE_VOLATILE_STRIDE", C.Comma((C.Integer n), x))

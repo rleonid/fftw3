@@ -56,7 +56,7 @@ let twinstr_to_simd_string vl l =
     | [] -> ""
     | a :: b ->  (one (if first then "\n" else ",\n") a) ^ (loop false b)
   in "{" ^ (loop true (unroll_twfull l)) ^ "}"
-  
+
 let rec pow m n =
   if (n = 0) then 1
   else m * pow m (n - 1)
@@ -83,7 +83,7 @@ let rec_array n f =
     h
   end
 
- 
+
 let ctimes use_complex_arith a b =
   if use_complex_arith then
     Complex.ctimes a b
@@ -97,9 +97,9 @@ let ctimesj use_complex_arith a b =
     Complex.times (Complex.conj a) b
 
 let make_bytwiddle sign use_complex_arith g f i =
-  if i = 0 then 
+  if i = 0 then
     f i
-  else if sign = 1 then 
+  else if sign = 1 then
     ctimes use_complex_arith (g i) (f i)
   else
     ctimesj use_complex_arith (g i) (f i)
@@ -126,18 +126,18 @@ let twiddle_policy_log2 v use_complex_arith =
       else if is_pow 2 i then w (log 2 i)
       else let x = largest_power_smaller_than 2 i in
       let y = i - x in
-	ctimes use_complex_arith (self x) (self y))
+        ctimes use_complex_arith (self x) (self y))
     in make_bytwiddle sign use_complex_arith g f
   and twidlen n = 2 * (log 2 (largest_power_smaller_than 2 (2 * n - 1)))
   and twdesc n =
-    (List.flatten 
-       (List.map 
-	  (fun i -> 
-	    if i > 0 && is_pow 2 i then 
-	      [TW_CEXP, v, i] 
-	    else 
-	      [])
-	  (iota n)))
+    (List.flatten
+       (List.map
+          (fun i ->
+            if i > 0 && is_pow 2 i then
+              [TW_CEXP, v, i]
+            else
+              [])
+          (iota n)))
     @ [(TW_NEXT, 1, 0)]
   in bytwiddle, twidlen, twdesc
 
@@ -153,27 +153,27 @@ let twiddle_policy_log3 v use_complex_arith =
       if i = 0 then Complex.one
       else if is_pow 3 i then w (log 3 i)
       else if i = (n - 1) && maxterm >= n then
-	w (nterms - 1)
+        w (nterms - 1)
       else let x = smallest_power_larger_than 3 i in
       if (i + i >= x) then
-	let x = min x (n - 1) in
-	  ctimesj use_complex_arith (self (x - i)) (self x)
+        let x = min x (n - 1) in
+          ctimesj use_complex_arith (self (x - i)) (self x)
       else let x = largest_power_smaller_than 3 i in
-	ctimes use_complex_arith (self (i - x)) (self x))
+        ctimes use_complex_arith (self (i - x)) (self x))
     in make_bytwiddle sign use_complex_arith g f
   and twidlen n = 2 * (terms_needed 0 1 0 n)
   and twdesc n =
-    (List.map 
-       (fun i -> 
-	  let x = min (pow 3 i) (n - 1) in
-	    TW_CEXP, v, x)
+    (List.map
+       (fun i ->
+          let x = min (pow 3 i) (n - 1) in
+            TW_CEXP, v, x)
        (iota ((twidlen n) / 2)))
     @ [(TW_NEXT, 1, 0)]
   in bytwiddle, twidlen, twdesc
-    
+
 let current_twiddle_policy = ref twiddle_policy_load_all
 
-let twiddle_policy use_complex_arith = 
+let twiddle_policy use_complex_arith =
   !current_twiddle_policy use_complex_arith
 
 let set_policy x = Arg.Unit (fun () -> current_twiddle_policy := x)
@@ -185,4 +185,4 @@ let speclist = [
   "-twiddle-load-all", set_policy twiddle_policy_load_all, undocumented;
   "-twiddle-log2", set_policy twiddle_policy_log2, undocumented;
   "-twiddle-log3", set_policy twiddle_policy_log3, undocumented;
-] 
+]

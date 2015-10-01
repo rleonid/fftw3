@@ -22,10 +22,10 @@
 open Variable
 open Expr
 
-type annotated_schedule = 
+type annotated_schedule =
     Annotate of variable list * variable list * variable list *
-	int * aschedule
-and aschedule = 
+        int * aschedule
+and aschedule =
     ADone
   | AInstr of assignment
   | ASeq of (annotated_schedule * annotated_schedule)

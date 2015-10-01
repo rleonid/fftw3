@@ -75,9 +75,9 @@ let is_two = equal two
    to precision epsilon after each operation.  Otherwise, since the
    Num package uses exact rational arithmetic, the number of digits
    quickly blows up. *)
-let mul (N a) (N b) = makeNum (round (a */ b)) 
+let mul (N a) (N b) = makeNum (round (a */ b))
 let div (N a) (N b) = makeNum (round (a // b))
-let add (N a) (N b) = makeNum (round (a +/ b)) 
+let add (N a) (N b) = makeNum (round (a +/ b))
 let sub (N a) (N b) = makeNum (round (a -/ b))
 
 let negative (N a) = (a </ (Int 0))
@@ -134,7 +134,7 @@ let primitive_root_of_unity n =
             else root_iter newguess
     in let float_to_num f = (Int (truncate (f *. 1.0e9))) // (Int 1000000000)
     in root_iter (float_to_num (cos (twopi /. (float n))),
-		  float_to_num (sin (twopi /. (float n)))) 
+                  float_to_num (sin (twopi /. (float n))))
 
 let cexp n i =
     if ((i mod n) == 0) then
@@ -150,10 +150,10 @@ let to_konst (N n) =
   let f2 = if (f' >= 1.0) then (f' -. (float (truncate f'))) else f'
   in let q = string_of_int (truncate(f2 *. 1.0E9))
   in let r = "0000000000" ^ q
-  in let l = String.length r 
+  in let l = String.length r
   in let prefix = if (f < 0.0) then "KN" else "KP" in
   if (f' >= 1.0) then
-    (prefix ^ (string_of_int (truncate f')) ^ "_" ^ 
+    (prefix ^ (string_of_int (truncate f')) ^ "_" ^
      (String.sub r (l - 9) 9))
   else
     (prefix ^ (String.sub r (l - 9) 9))
